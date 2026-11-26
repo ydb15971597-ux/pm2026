@@ -157,19 +157,23 @@ const BGM = (() => {
   try{ sfxOn = JSON.parse(localStorage.getItem('kboBgm')||'{}').sfx !== false; }catch(e){}
   function batHit(power=1){
     if(!sfxOn) return; init(); if(!ctx) return; ctx.resume();
-    if(!sfxOut){ sfxOut=ctx.createGain(); sfxOut.gain.value=0.9; sfxOut.connect(comp); const w=ctx.createGain(); w.gain.value=0.18; sfxOut.connect(w); w.connect(rev); }
-    const t=ctx.currentTime+0.005, p=power*(0.9+Math.random()*0.2);
-    // 1) 크랙: 아주 짧은 고역 노이즈
-    const n=ctx.createBufferSource(); n.buffer=noiseBuf; const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1800;
-    const bp=ctx.createBiquadFilter(); bp.type='peaking'; bp.frequency.value=3200; bp.gain.value=9; bp.Q.value=1.2;
-    const ng=ctx.createGain(); ng.gain.setValueAtTime(0.0001,t); ng.gain.linearRampToValueAtTime(0.95*p,t+0.0015); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.075);
-    n.connect(hp); hp.connect(bp); bp.connect(ng); ng.connect(sfxOut); n.start(t); n.stop(t+0.1);
-    // 2) 나무 울림: 빠르게 꺼지는 비정수배 공진음
-    [[920,0.32,0.09],[1480,0.2,0.06],[2650,0.12,0.04],[430,0.22,0.12]].forEach(([f,a,d])=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(f*(1+Math.random()*0.03),t); o.frequency.exponentialRampToValueAtTime(f*0.93,t+d);
-      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(a*p,t+0.001); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t+d+0.02); });
-    // 3) 공이 찌그러지는 낮은 충격음
-    const k=ctx.createOscillator(), kg=ctx.createGain(); k.frequency.setValueAtTime(190,t); k.frequency.exponentialRampToValueAtTime(70,t+0.05);
-    kg.gain.setValueAtTime(0.5*p,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.07); k.connect(kg); kg.connect(sfxOut); k.start(t); k.stop(t+0.09);
+    if(!sfxOut){ sfxOut=ctx.createGain(); sfxOut.gain.value=0.85; sfxOut.connect(comp);
+      const w=ctx.createGain(); w.gain.value=0.38; const cv=ctx.createConvolver(); cv.buffer=rev.buffer; sfxOut.connect(w); w.connect(cv); cv.connect(comp);                       // 야구장 잔향
+      const sl=ctx.createDelay(0.5); sl.delayTime.value=0.11; const sg=ctx.createGain(); sg.gain.value=0.16; const sf=ctx.createBiquadFilter(); sf.type='lowpass'; sf.frequency.value=3500;
+      sfxOut.connect(sl); sl.connect(sf); sf.connect(sg); sg.connect(comp); }                                   // 관중석에서 돌아오는 짧은 메아리
+    const t=ctx.currentTime+0.005, p=power*(0.92+Math.random()*0.16), f0=1180*(0.97+Math.random()*0.06);
+    // 1) 맑게 울리는 나무 공진음 ("깡"): 나무 막대처럼 비정수배 배음, 높은 음일수록 빨리 사라짐
+    [[1,0.55,0.20],[2.76,0.26,0.09],[5.40,0.10,0.045],[0.47,0.24,0.13]].forEach(([r,a,d])=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine';
+      o.frequency.setValueAtTime(f0*r*1.025,t); o.frequency.exponentialRampToValueAtTime(f0*r,t+0.02);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(a*p,t+0.0008); g.gain.exponentialRampToValueAtTime(0.0001,t+d*(power>1?1.15:1));
+      o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t+d*1.2+0.02); });
+    // 2) 맞는 순간의 아주 짧은 "탁" (밝은 클릭, 지저분하지 않게 4ms)
+    const n=ctx.createBufferSource(); n.buffer=noiseBuf; const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=4500;
+    const ng=ctx.createGain(); ng.gain.setValueAtTime(0.55*p,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.006);
+    n.connect(hp); hp.connect(ng); ng.connect(sfxOut); n.start(t); n.stop(t+0.02);
+    // 3) 가볍게 받쳐 주는 몸통음 (둔하지 않게 짧고 작게)
+    const k=ctx.createOscillator(), kg=ctx.createGain(); k.type='triangle'; k.frequency.setValueAtTime(320,t); k.frequency.exponentialRampToValueAtTime(180,t+0.04);
+    kg.gain.setValueAtTime(0.18*p,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.05); k.connect(kg); kg.connect(sfxOut); k.start(t); k.stop(t+0.07);
   }
   function setSfx(v){ sfxOn=!!v; try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); p.sfx=sfxOn; localStorage.setItem('kboBgm', JSON.stringify(p)); }catch(e){} if(sfxOn) batHit(0.8); }
   // 플레이 버튼(시작·이어하기·계속·경기 중계·구단 선택 확정)을 누르면 "딱!"
