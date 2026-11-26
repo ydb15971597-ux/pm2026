@@ -888,6 +888,51 @@ body.ttl #bgm{display:none!important}
   .tt-feats{grid-template-columns:1fr;margin-top:32px}
 }
 @media (prefers-reduced-motion:reduce){ .tt *{animation:none!important} }
+
+/* ---------- 섹션 칩 탭 (mobilefit.js, PC·모바일 공통): 긴 화면을 위쪽 탭으로 나눔 ---------- */
+.msec{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 0 16px;padding:2px 0 4px}
+.msec::-webkit-scrollbar{display:none}
+.msec button{flex:none;min-height:38px;padding:7px 16px;border-radius:999px!important;border:0!important;background:var(--panel)!important;color:var(--text2);font-size:14px;font-weight:600}
+.msec button:hover{color:#fff}
+.msec button.on{background:var(--acc)!important;color:#fff}
+.msec-hide,.msec-empty{display:none!important}
+/* 라인업 표가 좁은 칸에서 가로로 밀리지 않게: 공간이 모자라면 수비 배치도를 아래로 */
+@media (max-width:1560px){ body.pc .grid:has(table.lu){grid-template-columns:minmax(0,1fr)!important} }
+@media (min-width:761px) and (max-width:1100px){ .grid:has(table.lu){grid-template-columns:minmax(0,1fr)!important} }
+@media (min-width:761px){ #content table.lu td:has(.pill.tr){white-space:normal;min-width:120px} #content table.lu td:has(.pill.tr) .pill{margin:2px 0} }
+/* ---------- 모바일 맞춤 (mobilefit.js): 카드형 표 · 촘촘한 목록 ---------- */
+@media (max-width:760px){
+  .msec{margin:0 -16px 12px;padding:2px 16px 4px}
+  body.mob .panel,body.mob .card{padding:16px}
+  body.mob .panel>h3,body.mob .card>h3{font-size:16px;margin-bottom:10px}
+  body.mob table{font-size:13.5px}
+  body.mob th,body.mob td{padding:9px 7px}
+  body.mob td .pn svg,body.mob td .pn img{width:26px!important;height:26px!important}
+  body.mob td .pn{gap:6px}
+  /* 넓은 표 → 줄마다 카드 */
+  body.mob table.mcard{display:block;width:100%;min-width:0!important}
+  body.mob table.mcard thead{display:none}
+  body.mob table.mcard tbody,body.mob table.mcard tfoot{display:block}
+  body.mob table.mcard tr{display:flex;flex-wrap:wrap;align-items:center;gap:5px 12px;padding:11px 16px;border-bottom:1px solid var(--line)}
+  body.mob table.mcard td{display:inline-flex;align-items:baseline;gap:4px;padding:0!important;border:0!important;background:none!important;position:static!important;font-size:13px;white-space:nowrap;min-width:0}
+  body.mob table.mcard td::before{content:attr(data-l);color:var(--mute);font-size:11.5px;font-weight:500}
+  body.mob table.mcard td:not([data-l])::before,body.mob table.mcard td[data-l=""]::before{display:none}
+  body.mob table.mcard td:has(.pn){order:-1;flex:1 1 60%;font-size:15px;white-space:normal}
+  body.mob table.mcard td:has(.pn)::before{display:none}
+  body.mob table.mcard td:has(select),body.mob table.mcard td:has(button){order:-1}
+  body.mob table.mcard td:has(.pn) ~ td:has(button){margin-left:auto}
+  body.mob table.mcard td:empty{display:none}
+  body.mob table.mcard td.mc-x{display:none}
+  body.mob #content h2:not(.m-big){display:none}
+  body.mob #content h2 + p{display:none}
+  body.mob table.mcard td .mute{display:none}
+  body.mob table.mcard td:has(.pn) .mute{display:inline}
+  body.mob table.mcard .stars{font-size:13px}
+  body.mob table.mcard tr.me{background:color-mix(in srgb,var(--acc) 14%,transparent)}
+  body.mob .panel:has(table.mcard){padding-left:0;padding-right:0}
+  body.mob table.mcard select{min-height:36px;font-size:14px;padding:4px 8px}
+  body.mob table.mcard button{min-height:34px;padding:4px 12px;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -907,5 +952,6 @@ body.ttl #bgm{display:none!important}
 <script src="mobile.js"></script>
 <script src="desktop.js"></script>
 <script src="title.js"></script>
+<script src="mobilefit.js"></script>
 </body>
 </html>

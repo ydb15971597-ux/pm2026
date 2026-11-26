@@ -366,7 +366,7 @@ let pickSel = null, pickMore = false;
   const diff = x=> x.goalRank<=2?'높은 기대':x.goalRank<=5?'보통':'도전';
   root.innerHTML = `<div class="pick">
     <div class="pick-top"><div><button onclick="startStep='title';pickSel=null;renderStart()" style="margin-bottom:10px">← 타이틀</button><h2>어느 구단을 맡을까요?</h2>
-      <div class="mute">2025 시즌이 끝난 11월, 스토브리그부터 시작해요. 구단마다 예산·팬 성향·이사회 기대치가 달라요.</div></div></div>
+      <div class="mute">2026 시즌 3월 시범경기부터 시작해요. 구단마다 예산·팬 성향·이사회 기대치가 달라요.</div></div></div>
     <div class="pick-grid"><div class="pick-list">${TEAM_DATA.slice().sort((a,b)=>a.prevRank-b.prevRank).map(x=>`<button class="pk ${pickSel===x.id?'on':''}" style="--c:${x.color}" onclick="pickSel='${x.id}';pickMore=false;renderStart()">${crest(x.id,44)}<span><b>${x.name}</b><span class="s">${x.city} · 예산 ${x.budget}억</span></span><span class="rk">2025<br> <b>${x.prevRank}위</b></span></button>`).join('')}</div>
     ${t ? `<div class="pdet ${pickMore?'more':''}" style="--c:${t.color}"><div class="hd">${crest(t.id,56)}<div><b style="font-size:19px">${t.name}</b><div class="mute" style="font-size:13px">${t.stadium} · 감독 ${t.mgr.name}</div></div>
         <button class="m-more" style="margin-left:auto;min-height:36px;padding:6px 12px;font-size:13px" onclick="pickMore=!pickMore;renderStart()">${pickMore?'접기':'자세히'}</button></div>

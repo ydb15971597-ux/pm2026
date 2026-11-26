@@ -1326,7 +1326,30 @@ const NAME_MAP_H = {"1513459581": "치리나스", "930030409": "톨하스트", "
 
 // ---------- 새 게임: 2025 시즌 종료 후 스토브리그에서 시작 ----------
 const _newGame3 = newGame;
-newGame = function(userId, mgrName){ _newGame3(userId, mgrName); startFromStove(); };
+newGame = function(userId, mgrName){ _newGame3(userId, mgrName); startFromStove(); fastToExhib(); };
+// 2026 시범경기부터 시작: 스토브리그·스프링캠프는 구단들이 알아서 진행(FA·트레이드·캠프)하고 3월 시범경기 첫날에 넘겨받는다
+function fastToExhib(){
+  const sv=save; save=()=>{};
+  try{ let g=0; while(S.phase==='off' && S.off && S.off.stage!=='exhib' && g++<40) advanceOff(1); }
+  finally{ save=sv; }
+  for(const p of Object.values(S.players)) if(p.team===S.user) p.morale=Math.max(p.morale, 70);
+  const moves = S.off?.log?.slice(-8) || [];
+  S.inbox=[];
+  mail('이사회','2026 시즌 시범경기 개막', `${S.mgrName} 감독님, ${TD(S.user).name}에 오신 것을 환영합니다. 스토브리그와 스프링캠프가 끝나고 3월 시범경기가 시작됩니다.
+
+<b>정규시즌 개막(3월 28일)까지 할 일</b>
+· 시범경기로 선수 컨디션과 신예를 점검 (포털 → 시범경기)
+· 개막 엔트리 1군 28명 확정 (선수단 → 1군 · 퓨처스)
+· 라인업·선발 로테이션·불펜 보직 정리 (선수단 → 라인업·전술)
+· 남은 FA·해외 선수로 마지막 보강 (영입)
+· 고교·대학 유망주 관찰 시작 (영입 → 고교 · 대학 야구)
+
+지난 시즌(2025) 기록은 선수 화면과 기록 메뉴에서 볼 수 있습니다.${moves.length?`
+
+<b>이번 겨울 주요 이동</b>
+${moves.map(x=>'· '+String(typeof x==='string'?x:(x.t||x.text||'')).replace(/^[•✅❌]\s*/,'')).join('\n')}`:''}`, 'board');
+  save();
+}
 
 // ---------- 가상 2025 시즌 기록 (스토브리그 시작용) ----------
 // 실제 기록이 아니라 각 선수의 능력치·역할로 만든 가상의 성적. 리그 평균(타율 .265 안팎)에 맞춰 보정한다.
@@ -1423,7 +1446,7 @@ function startFromStove(){
   S.off={stage:'stove', pool, offers:{}, log:[], week:0, retired:[], exhib:null, fcampDone:0};
   S.inbox=S.inbox.filter(m=>!/신인 드래프트 준비/.test(m.title));
   gen2025();
-  mail('이사회','2025 시즌 종료 · 스토브리그 개막',`${S.mgrName} 감독님, ${TD(S.user).name}에 오신 것을 환영합니다. 2025 시즌이 끝나고 스토브리그가 시작됐습니다.\n\n<b>개막(2026년 3월 28일)까지 할 일</b>\n· FA 시장에서 전력 보강 (영입 → FA · 스토브리그)\n· 트레이드 · 해외 스카우트로 외국인 선수 점검\n· 11월 마무리캠프 · 2월 스프링캠프 계획 (훈련 → 캠프)\n· 고교·대학 유망주 관찰 시작 (영입 → 고교 · 대학 야구)\n· 3월 시범경기에서 개막 엔트리 결정\n\n상단의 <b>계속</b>을 누르면 1주씩 진행됩니다.`,'board');
+  // (안내 메일은 fastToExhib에서)
   save();
 }
 

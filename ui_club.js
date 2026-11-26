@@ -531,7 +531,10 @@ tr[data-dnd]{cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch
 
 // ---------- 드래그로 교체 ----------
 function tacticsDnd(){
-  const u=S.teams[S.user], tabs=document.querySelectorAll('#content table.lu'); if(tabs.length<5) return;
+  const u=S.teams[S.user], all=[...document.querySelectorAll('#content table.lu')];
+  // 표 순서가 바뀌어도(퓨처스 콜업 표 등) 패널 제목으로 찾는다
+  const byT=re=>all.find(t=>{ const p=t.closest('.panel,.card'); const h=p&&p.querySelector('h3'); return h && re.test(h.textContent); });
+  const tabs=[byT(/선발 라인업/), byT(/벤치/), byT(/로테이션/), byT(/불펜/), byT(/투수진/)]; if(tabs.some(t=>!t)) return;
   const act=act1(u), inLU=new Set(u.lineup.map(x=>x.pid));
   const bench=act.filter(p=>!p.isP).sort((a,b)=>batVal(b)-batVal(a)).filter(p=>!inLU.has(p.id));
   const pit=act.filter(p=>p.isP).sort((a,b)=>ovrOf(b)-ovrOf(a));

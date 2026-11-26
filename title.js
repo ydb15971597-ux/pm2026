@@ -30,7 +30,7 @@ const tic = (k,s=22)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill=
       <ul class="tt-feats">
         <li><span class="tt-fi">${tic('team')}</span><div><b>10개 구단 · 260명</b><span>구단마다 다른 예산·팬·목표</span></div></li>
         <li><span class="tt-fi">${tic('ball')}</span><div><b>실시간 경기 중계</b><span>투구 하나하나에 작전 지시</span></div></li>
-        <li><span class="tt-fi">${tic('swap')}</span><div><b>FA · 드래프트 · 트레이드</b><span>스토브리그까지 1년 내내</span></div></li>
+        <li><span class="tt-fi">${tic('swap')}</span><div><b>FA · 드래프트 · 트레이드</b><span>시즌 중·스토브리그까지 1년 내내</span></div></li>
         <li><span class="tt-fi">${tic('chart')}</span><div><b>FM식 능력치 200</b><span>숨은 능력과 성장까지</span></div></li>
       </ul>
     </main>
