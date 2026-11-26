@@ -347,15 +347,18 @@ if(!MENUS.some(m=>m.k==='set')) MENUS.push({k:'set', l:'설정', items:[['settin
 // 구단색 대신 기본 강조색
 { const _setAcc = setAcc; setAcc = function(){ _setAcc(); if(pmPrefs().neutral){ const r=document.documentElement; r.style.setProperty('--acc','#e5383b'); r.style.setProperty('--accL','#ff6b6e'); r.style.setProperty('--accS','rgba(229,56,59,.14)'); } }; }
 
-// ---------- 메시지: 스페이스바로 다음 메시지 ----------
+// ---------- 스페이스바: 안 읽은 메시지가 있으면 다음 메시지, 다 읽었으면 일정 진행(계속 버튼) ----------
 document.addEventListener('keydown', e=>{
-  if(!S || LV) return;
-  const tg=e.target; if(tg && (tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'||tg.tagName==='SELECT'||tg.isContentEditable)) return;
+  if(!S || LV || e.repeat) return;
   if(e.code!=='Space' && e.key!==' ') return;
-  if(!(page==='inbox' || page==='view')) return;
+  const tg=e.target; if(tg && (tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'||tg.tagName==='SELECT'||tg.isContentEditable)) return;
+  if(document.querySelector('.m-sheet-bg, #cfbar')) return;
+  if(tg && tg.blur && (tg.tagName==='BUTTON'||tg.tagName==='A')) tg.blur();   // 포커스된 버튼이 스페이스로 눌리지 않게
+  e.preventDefault();
   const i = S.inbox.findIndex(m=>!m.read);
-  if(i<0){ if(page!=='home'){ e.preventDefault(); alert('읽지 않은 메시지가 없어요.'); } return; }
-  e.preventDefault(); openMail(i);
+  if(i>=0){ openMail(i); return; }
+  const go = document.querySelector('.cont .go:not([disabled])') || document.querySelector('.m-go');
+  if(go){ go.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true})); go.click(); }
 });
 
 // ---------- 팀 선택 (토스 스타일: 한 화면 목록 + 상세 카드) ----------
