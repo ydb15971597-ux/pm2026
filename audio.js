@@ -175,9 +175,54 @@ const BGM = (() => {
     const k=ctx.createOscillator(), kg=ctx.createGain(); k.type='triangle'; k.frequency.setValueAtTime(320,t); k.frequency.exponentialRampToValueAtTime(180,t+0.04);
     kg.gain.setValueAtTime(0.18*p,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.05); k.connect(kg); kg.connect(sfxOut); k.start(t); k.stop(t+0.07);
   }
+  // 구단 선택 팡파르: "빠바바바바밤 빠바바바바밤~ 빠바바바바바밤~" (오리지널 브라스 팡파르) + 관중 함성
+  function brass(n, t, dur, lvl=0.09, pan=0){
+    const f=hz(n), g=ctx.createGain(), flt=ctx.createBiquadFilter(); flt.type='lowpass'; flt.Q.value=1.5;
+    flt.frequency.setValueAtTime(700,t); flt.frequency.linearRampToValueAtTime(3800,t+0.035); flt.frequency.exponentialRampToValueAtTime(1900,t+Math.max(0.08,dur));
+    const pn=ctx.createStereoPanner?ctx.createStereoPanner():null; flt.connect(g); if(pn){ pn.pan.value=pan; g.connect(pn); pn.connect(sfxOut); } else g.connect(sfxOut);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl,t+0.018); g.gain.setValueAtTime(lvl*0.85,t+Math.max(0.03,dur-0.03)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.09);
+    const vib=ctx.createOscillator(), vg=ctx.createGain(); vib.frequency.value=5.6; vg.gain.setValueAtTime(0,t); vg.gain.linearRampToValueAtTime(dur>0.4?10:0,t+Math.min(dur,0.45)); vib.connect(vg);
+    [[-7,'sawtooth',0.5],[7,'sawtooth',0.5],[0,'square',0.22]].forEach(([dt,ty,a])=>{ const o=ctx.createOscillator(), og=ctx.createGain(); o.type=ty; o.frequency.value=f; o.detune.value=dt; vg.connect(o.detune); og.gain.value=a; o.connect(og); og.connect(flt); o.start(t); o.stop(t+dur+0.12); });
+    vib.start(t); vib.stop(t+dur+0.12);
+  }
+  function timp(n, t, lvl=0.5){ const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.setValueAtTime(hz(n)*1.5,t); o.frequency.exponentialRampToValueAtTime(hz(n),t+0.06);
+    g.gain.setValueAtTime(lvl,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.7); o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t+0.75); }
+  function sfxNoise(t, dur, type, freq, lvl, q=0.7, att=0.002){ const s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain(); s.buffer=noiseBuf; s.loop=true;
+    f.type=type; f.frequency.value=freq; f.Q.value=q; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl,t+att); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); s.connect(f); f.connect(g); g.connect(sfxOut); s.start(t); s.stop(t+dur+0.05); return g; }
+  function crash(t, lvl=0.22){ sfxNoise(t, 1.8, 'highpass', 5200, lvl, 0.5); sfxNoise(t, 0.9, 'bandpass', 3200, lvl*0.6, 0.8); }
+  function snareRoll(t, dur, lvl=0.06){ for(let x=0;x<dur;x+=0.045) sfxNoise(t+x, 0.05, 'bandpass', 2200, lvl*(0.5+x/dur*0.8), 0.7); }
+  function roar(t, dur=4.2, lvl=0.32){
+    // 관중 함성: 여러 대역의 노이즈를 느린 흔들림으로 겹쳐 사람 목소리 덩어리처럼
+    [[350,0.9],[650,1],[1100,0.8],[1900,0.45],[3200,0.2]].forEach(([fq,a],i)=>{
+      const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true; s.playbackRate.value=0.8+Math.random()*0.4;
+      const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=fq; f.Q.value=0.9;
+      const g=ctx.createGain(), lfo=ctx.createOscillator(), lg=ctx.createGain(); lfo.frequency.value=2+Math.random()*3; lg.gain.value=lvl*a*0.25; lfo.connect(lg); lg.connect(g.gain);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl*a,t+0.5); g.gain.setValueAtTime(lvl*a,t+dur*0.55); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      const pn=ctx.createStereoPanner?ctx.createStereoPanner():null; s.connect(f); f.connect(g); if(pn){ pn.pan.value=(i%2?1:-1)*0.4; g.connect(pn); pn.connect(sfxOut); } else g.connect(sfxOut);
+      s.start(t); s.stop(t+dur+0.05); lfo.start(t); lfo.stop(t+dur+0.05); });
+    for(let i=0;i<14;i++){ const tt=t+0.3+Math.random()*(dur-1); sfxNoise(tt, 0.12, 'bandpass', 1200+Math.random()*1200, 0.05+Math.random()*0.05, 1.5); }   // 박수
+    for(let i=0;i<3;i++){ const tt=t+0.4+Math.random()*1.6, o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.setValueAtTime(2400+Math.random()*600,tt); o.frequency.linearRampToValueAtTime(3000+Math.random()*500,tt+0.25);   // 휘파람
+      g.gain.setValueAtTime(0.0001,tt); g.gain.linearRampToValueAtTime(0.035,tt+0.04); g.gain.exponentialRampToValueAtTime(0.0001,tt+0.4); o.connect(g); g.connect(sfxOut); o.start(tt); o.stop(tt+0.45); }
+  }
+  function fanfare(){
+    if(!sfxOn) return; init(); if(!ctx) return; ctx.resume(); batHit(0.01);   // sfxOut 준비
+    if(on){ out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(vol*0.12, ctx.currentTime, 0.1); out.gain.setTargetAtTime(vol*0.5, ctx.currentTime+5.2, 0.6); }
+    const t0=ctx.currentTime+0.08, s=0.085;   // 짧은 음 길이
+    // [음, 화음 아래 3도/4도] — 세 번째 구절은 한 음 더 길고 높게 끝난다
+    const P=[ {t:0,    n:[67,67,67,67,67], end:[72,64], len:0.42, tm:43},
+              {t:0.82, n:[69,69,69,69,69], end:[74,65], len:0.42, tm:45},
+              {t:1.64, n:[71,71,71,71,71,72], end:[76,72,67], len:1.25, tm:48} ];
+    snareRoll(t0-0.02, 0.4, 0.04);
+    P.forEach((ph,i)=>{ const st=t0+ph.t;
+      ph.n.forEach((n,k)=>{ brass(n, st+k*s, s*0.8, 0.075, -0.15); brass(n-(i===2?5:4), st+k*s, s*0.8, 0.045, 0.2); });
+      const et=st+ph.n.length*s; ph.end.forEach((n,k)=>brass(n, et, ph.len, k?0.06:0.095, k?0.25*(k%2?1:-1):0));
+      timp(ph.tm-12, et, 0.55); if(i<2) snareRoll(et+0.1, 0.25, 0.03); });
+    const fin=t0+1.64+6*s; crash(fin, 0.24); timp(36, fin+0.0, 0.6); timp(36, fin+0.62, 0.45);
+    roar(fin-0.15, 4.6, 0.3);
+  }
   function setSfx(v){ sfxOn=!!v; try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); p.sfx=sfxOn; localStorage.setItem('kboBgm', JSON.stringify(p)); }catch(e){} if(sfxOn) batHit(0.8); }
   // 플레이 버튼(시작·이어하기·계속·경기 중계·구단 선택 확정)을 누르면 "딱!"
-  const PLAY_SEL = '.tt-go,.tt-save,.cont .go,.m-go,.pdet .go,.pregame .pri';
+  const PLAY_SEL = '.tt-go,.tt-save,.cont .go,.m-go,.pregame .pri';
   document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest(PLAY_SEL); if(b && !b.disabled) batHit(b.classList.contains('live')?1.15:1); }, true);
   document.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && document.activeElement?.matches?.(PLAY_SEL)) batHit(); }, true);
   function boot(){
@@ -186,6 +231,8 @@ const BGM = (() => {
     if(p.on!==false){ const go=()=>{ document.removeEventListener('pointerdown',go,true); document.removeEventListener('keydown',go,true); if(!on && prefs().on!==false) start(); };
       document.addEventListener('pointerdown',go,true); document.addEventListener('keydown',go,true); }  // 브라우저 정책: 첫 클릭 뒤 재생
   }
-  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, setSfx, get sfx(){ return sfxOn; }};
+  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, fanfare, setSfx, get sfx(){ return sfxOn; }};
 })();
 BGM.boot();
+// 구단을 골라 새 게임을 시작하면 팡파르와 함성 (확인 막대를 거쳐도 실제로 시작될 때만)
+if(typeof newGame==='function'){ const _ngF=newGame; newGame=function(...a){ const r=_ngF.apply(this,a); try{ if(typeof startStep!=='undefined') BGM.fanfare(); }catch(e){} return r; }; }
