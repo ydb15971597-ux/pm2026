@@ -232,17 +232,20 @@ const BGM = (() => {
       const et=st+ph.n.length*s; ph.end.forEach((n,k)=>brass(n, et, ph.len, k?0.06:0.095, k?0.25*(k%2?1:-1):0));
       timp(ph.tm-12, et, 0.55); if(i<2) snareRoll(et+0.1, 0.25, 0.03); });
     const fin=t0+1.64+6*s; crash(fin, 0.24); timp(36, fin+0.0, 0.6); timp(36, fin+0.62, 0.45);
-    roar(fin-0.15, 4.6, 0.3);
+    if(!smp('cheer2', 0.95, Math.max(0, fin-0.2-ctx.currentTime))) roar(fin-0.15, 4.6, 0.3);
   }
   // ---------- 중계 관중 소리 ----------
   let bed=null;   // 경기 내내 들리는 관중 웅성거림 (짧은 말소리 조각들)
   function crowdBed(onOff){
-    if(!onOff){ if(bed){ clearInterval(bed.timer); bed=null; } return; }
+    if(!onOff){ if(bed){ const b=bed; bed=null; if(b.timer) clearInterval(b.timer); if(b.smp){ b.g.gain.setTargetAtTime(0.0001,ctx.currentTime,0.5); setTimeout(()=>{ try{ b.src.forEach(x=>x.stop()); }catch(e){} },2500); } } return; }
     if(bed || !sfxOn || !ensureSfx()) return;
+    if(SB.bed1 || SB.bed2){ const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,ctx.currentTime); g.gain.linearRampToValueAtTime(0.55,ctx.currentTime+1.5); g.connect(sfxOut);
+      const src=[SB.bed1,SB.bed2].filter(Boolean).map((b,i)=>{ const s_=ctx.createBufferSource(); s_.buffer=b; s_.loop=true; const p=ctx.createStereoPanner?ctx.createStereoPanner():null; if(p){ p.pan.value=i?0.5:-0.5; s_.connect(p); p.connect(g); } else s_.connect(g); s_.start(ctx.currentTime, Math.random()*b.duration*0.8); return s_; });
+      bed={g, src, until:0, timer:null, smp:true}; return; }
     bed={lvl:0.022, until:0, timer:setInterval(()=>{ if(!ctx) return; const t=ctx.currentTime+0.05, boost=performance.now()<bed.until?2.2:1, k=Math.random()<0.5?2:1;
       for(let i=0;i<k;i++) voice(t+rnd(0,0.12), rnd(0.12,0.35), vf0()*rnd(0.9,1.1), ['a','o','e','u','ae'][Math.floor(Math.random()*5)], bed.lvl*boost*rnd(0.5,1.2), [1, rnd(0.95,1.15), rnd(0.85,1)], rnd(-0.9,0.9)); }, 110)};
   }
-  function bedSwell(lvl, dur){ if(bed) bed.until=performance.now()+dur*1000; }
+  function bedSwell(lvl, dur){ if(!bed) return; bed.until=performance.now()+dur*1000; if(bed.smp){ const t=ctx.currentTime; bed.g.gain.cancelScheduledValues(t); bed.g.gain.setTargetAtTime(1.0,t,0.2); bed.g.gain.setTargetAtTime(0.55,t+dur,0.8); } }
   function groan(t, lvl=0.16){ cheer(t, 1.5, lvl, 24, ['o','u'], [1.12, 1.0, 0.72]); }   // "오우~" 탄식
   function claps(t, n=10, spread=0.5, lvl=0.07){ for(let i=0;i<n;i++){ const tt=t+Math.random()*spread; sfxNoise(tt, 0.035, 'bandpass', rnd(1300,2400), lvl*rnd(0.6,1.2), 1.1, 0.001); } }
   function bigDrum(t, lvl=0.55){ // 응원단 큰북: 낮은 "둥" + 가죽 타격감
@@ -268,11 +271,68 @@ const BGM = (() => {
   }
   function drum(t, n=4, lvl=0.35){ for(let i=0;i<n;i++) bigDrum(t+i*0.5, lvl*(i%2?0.7:1)); }   // 위기: 무거운 큰북
   function sting(t){ [[67,0],[67,0.09],[72,0.18]].forEach(([n,d],i)=>{ brass(n, t+d, i===2?0.5:0.07, 0.07); brass(n-5, t+d, i===2?0.5:0.07, 0.045, 0.2); }); }
+  // ---------- 녹음 효과음 (sounds.js의 SND_B64) ----------
+  const SB={}; let sbLoading=false;
+  function loadSamples(){
+    if(sbLoading || typeof SND_B64==='undefined') return; init(); if(!ctx) return; sbLoading=true;
+    for(const [k,b64] of Object.entries(SND_B64)){
+      try{ const bin=atob(b64), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+        const done=buf=>{ SB[k]=buf; }, fail=()=>{};
+        const pr=ctx.decodeAudioData(u.buffer, done, fail); if(pr && pr.catch) pr.catch(fail); }catch(e){}
+    }
+  }
+  // 녹음 재생: name이 배열이면 무작위 하나. 없으면 false (합성음으로 대신)
+  function smp(name, vol=1, delay=0, rate=1, pan=0){
+    if(Array.isArray(name)) name=name[Math.floor(Math.random()*name.length)];
+    const b=SB[name]; if(!b || !ensureSfx()) return false;
+    const s_=ctx.createBufferSource(); s_.buffer=b; s_.playbackRate.value=rate*(0.97+Math.random()*0.06);
+    const g=ctx.createGain(); g.gain.value=vol; s_.connect(g);
+    if(pan && ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; g.connect(p); p.connect(sfxOut); } else g.connect(sfxOut);
+    s_.start(ctx.currentTime+0.01+delay); return true;
+  }
+  const BREAKING=/커브|슬라이더|스위퍼|체인지업|포크|스플리터|너클|싱커/;
+  // 투구 소리: 공이 날아가는 소리(구속·구종별) → 포수 미트 / 헛스윙 / 파울
+  function pitchSnd(ev, speed){
+    if(!sfxOn || !ensureSfx() || !ev) return; const res=String(ev.res||''), v=+ev.v||140, fast=speed==='fast';
+    if(res==='고의사구'){ smp('catch_s',0.35); return; }
+    if(!fast) smp(BREAKING.test(ev.pt||'')?'fly_brk': v>=148?'fly_fast':['fly1','fly2'], 0.32);
+    const d = fast?0:0.3;
+    if(res==='타격') return;                                    // 타구음은 결과에서
+    if(/파울/.test(res)){ smp(['foul1','foul2'],0.7,d) || batHit(0.5); return; }
+    if(/몸에 맞는/.test(res)){ smp('land1',0.6,d); return; }
+    if(/헛스윙/.test(res)) smp(['swing1','swing2'],0.55,Math.max(0,d-0.08));
+    smp(v>=145?'catch_f':v>=130?'catch_m':'catch_s', /삼진/.test(res)?0.95:0.75, d);
+  }
+  // 타구 소리 (아웃 타구): 땅볼·뜬공·직선타
+  function battedOut(text){
+    if(!sfxOn || !ensureSfx()) return; const t=String(text||'');
+    if(/땅볼|병살/.test(t)){ smp('hit',0.45,0,0.92); smp(['grd1','grd2'],0.6,0.35); }
+    else if(/뜬공|희생플라이/.test(t)){ smp('hit',0.55,0,1.0); smp(['land1','land2'],0.5,1.0); }
+    else if(/직선타/.test(t)){ smp('hit2',0.6); smp('catch_m',0.6,0.22); }
+  }
   let lastCrowd=0;
   function liveCrowd(kind, good=true, power=1){
     if(!sfxOn || !ensureSfx()) return; const t=ctx.currentTime+0.02, now=performance.now();
     if(now-lastCrowd<250 && !['hr','win','song'].includes(kind)) return; lastCrowd=now;
     const L=power*(good?1:0.55);
+    if(Object.keys(SB).length>8){ // 녹음이 준비되면 녹음 + (좋아하신) 합성 큰북·응원가
+      switch(kind){
+        case 'hit':  smp('hit',0.9); if(good) smp('cheer1',0.55*L,0.15); else smp('groan1',0.45,0.2); return;
+        case 'xbh':  smp('hit2',0.95); if(good) smp(['cheer1','cheer2'],0.75*L,0.12); else smp('groan2',0.6,0.2); return;
+        case 'hr':   smp('hr',1.0); if(good){ smp('cheer2',1.0*L,0.1); sting(t+0.35); crash(t+0.35,0.14); bigDrum(t+0.6,0.5); bigDrum(t+0.9,0.5); bedSwell(0.14,4); } else { smp('groan2',0.8,0.25); } return;
+        case 'run':  if(good) smp('cheer1',0.6*L); return;
+        case 'k':    if(good) smp('cheer1',0.45*L,0.1); else smp('groan1',0.45,0.1); return;
+        case 'dp':   if(good) smp(['cheer1','cheer2'],0.6*L,0.3); else smp('groan2',0.6,0.3); return;
+        case 'sb':   if(good) smp('cheer1',0.4*L); else smp('groan1',0.4); return;
+        case 'boo':  smp('boo',0.6); return;
+        case 'chance': if(Math.random()<0.6) cheerSong(t,0.24); else { smp('chant',0.8); drum(t+0.2,4,0.3); } bedSwell(0.1,3.5); return;
+        case 'rally': smp('chant',0.7); bigDrum(t+0.3,0.45); bigDrum(t+0.8,0.45); return;
+        case 'song': cheerSong(t,0.24); return;
+        case 'crisis': drum(t,4,0.3); bedSwell(0.08,2.5); return;
+        case 'win':  smp('cheer2',1.0); sting(t+0.2); crash(t+0.2,0.2); setTimeout(()=>{ if(sfxOn&&ctx) cheerSong(ctx.currentTime+0.05,0.2); }, 2600); return;
+        case 'lose': smp(['groan1','groan2'],0.55); return;
+      }
+    }
     switch(kind){
       case 'hit':  if(good){ roar(t,1.6,0.16*L); claps(t+0.2,10,0.8); } else groan(t,0.1); break;
       case 'xbh':  if(good){ roar(t,2.4,0.22*L); claps(t+0.2,16,1.2); } else groan(t,0.13); break;
@@ -292,15 +352,15 @@ const BGM = (() => {
   function setSfx(v){ sfxOn=!!v; try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); p.sfx=sfxOn; localStorage.setItem('kboBgm', JSON.stringify(p)); }catch(e){} if(sfxOn) batHit(0.8); }
   // 플레이 버튼(시작·이어하기·계속·경기 중계·구단 선택 확정)을 누르면 "딱!"
   const PLAY_SEL = '.tt-go,.tt-save,.cont .go,.m-go,.pregame .pri';
-  document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest(PLAY_SEL); if(b && !b.disabled) batHit(b.classList.contains('live')?1.15:1); }, true);
+  document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest(PLAY_SEL); if(b && !b.disabled){ if(!smp(b.classList.contains('live')?'hit2':'hit', 0.9)) batHit(b.classList.contains('live')?1.15:1); } }, true);
   document.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && document.activeElement?.matches?.(PLAY_SEL)) batHit(); }, true);
   function boot(){
-    const p=prefs(); ui();
+    const p=prefs(); ui(); setTimeout(loadSamples, 300);
     watch = setInterval(()=>{ want = (typeof LV!=='undefined' && LV) ? 'game' : 'main'; }, 500);
     if(p.on!==false){ const go=()=>{ document.removeEventListener('pointerdown',go,true); document.removeEventListener('keydown',go,true); if(!on && prefs().on!==false) start(); };
       document.addEventListener('pointerdown',go,true); document.addEventListener('keydown',go,true); }  // 브라우저 정책: 첫 클릭 뒤 재생
   }
-  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, fanfare, crowd:liveCrowd, crowdBed, setSfx, get sfx(){ return sfxOn; }};
+  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:()=>smp('hit',0.9)||batHit(), fanfare, crowd:liveCrowd, crowdBed, pitch:pitchSnd, batted:battedOut, sample:smp, setSfx, get sfx(){ return sfxOn; }};
 })();
 BGM.boot();
 // 구단을 골라 새 게임을 시작하면 팡파르와 함성 (확인 막대를 거쳐도 실제로 시작될 때만)

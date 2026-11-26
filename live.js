@@ -181,6 +181,7 @@ function zoneSvg(){
 function liveSfx(ev){
   if(typeof BGM==='undefined' || !BGM.crowd || !ev) return;
   const bat = ev.half, userBat = LV.uSide>=0 ? LV.uSide===bat : bat===1;
+  if(ev.type==='pitch'){ BGM.pitch?.(ev, LV.speed); return; }
   if(ev.type==='result'){
     const t = String(ev.text||'');
     let k = /홈런/.test(t)?'hr' : /2루타|3루타/.test(t)?'xbh' : /안타/.test(t)?'hit' : /병살/.test(t)?'dp' : /삼진/.test(t)?'k' : /도루 성공/.test(t)?'sb' : /도루 실패/.test(t)?'sbx' : null;
@@ -189,7 +190,8 @@ function liveSfx(ev){
     if(k==='sbx'){ k='sb'; good = !userBat; }
     const late = ev.inning>=7 ? 1.15 : 1;
     if(k) BGM.crowd(k, good, late);
-    else if(ev.runs) BGM.crowd('run', userBat, late);
+    else { BGM.batted?.(t); if(ev.runs) BGM.crowd('run', userBat, late); }
+    if(LV.uSide>=0 && userBat && /고의사구|몸에 맞는/.test(t)) BGM.crowd('boo');   // 우리 타자 고의사구·사구 → 야유
   }
   if(ev.type==='half' && LV.uSide>=0 && userBat && Math.random()<0.5) BGM.crowd('rally');   // 우리 공격 시작: 구호 응원
   if(ev.type==='pa' && LV.uSide>=0){

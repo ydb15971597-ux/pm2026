@@ -332,6 +332,7 @@ PAGES.settings = ()=>{
         <input type="range" min="0" max="1" step="0.05" value="${BGM.vol??0.35}" oninput="BGM.setVol(+this.value)" aria-label="배경음악 음량" style="width:160px"></div></div>
       <div class="setrow"><span>효과음<br><span class="mute" style="font-size:12px">플레이 버튼을 누를 때 타격음</span></span><div class="plg"><button class="planc ${BGM.sfx?'on':''}" onclick="BGM.setSfx(!BGM.sfx);render()"><b>${BGM.sfx?'켜짐':'꺼짐'}</b></button></div></div>
       <div class="setrow"><span>소리 미리 듣기</span><div class="plg">${[['hit','타격음','BGM.hit()'],['fan','팡파르','BGM.fanfare()'],['cheer','환호','BGM.crowd(\'xbh\',true)'],['hr','홈런','BGM.crowd(\'hr\',true)'],['groan','탄식','BGM.crowd(\'hit\',false)'],['song','응원가','BGM.crowd(\'song\')'],['rally','구호','BGM.crowd(\'rally\')'],['crisis','큰북','BGM.crowd(\'crisis\')']].map(([k,l,f])=>`<button onclick="${f}">${l}</button>`).join('')}</div></div>
+      <div class="setrow"><span>효과음 출처</span><span class="mute" style="font-size:12.5px">Freesoundcraft Baseball FX Sound Pack · 관중 녹음 · 큰북·응원가·팡파르는 직접 합성</span></div>
       <div class="setrow"><span>화면 효과</span><div class="plg"><label class="row" style="gap:6px"><input type="checkbox" ${p.noanim?'checked':''} onchange="setPref('noanim',this.checked)"> 애니메이션 줄이기</label></div></div>
     </div>
     <div class="panel"><h3>저장</h3>
