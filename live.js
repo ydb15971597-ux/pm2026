@@ -10,7 +10,7 @@ function watchLive(){
     LV = {gen, fin, home:h, away:a, uSide: a===S.user?0 : h===S.user?1 : -1, feed:[], speed:(typeof pmPrefs==='function'&&pmPrefs().liveSpeed)||'normal', paused:false,
       queued:null, ev:null, count:[0,0], lastPitch:null, banner:null, timer:null, lastWasPa:false, post:S.phase==='post', exhib:S.phase==='off'};
   });
-  if(r==='live'){ renderLive(); stepLive(); }
+  if(r==='live'){ try{ BGM.crowdBed?.(true); }catch(e){} renderLive(); stepLive(); }
 }
 function liveDelay(ev){
   const b = LV_SPEED[LV.speed]||600;
@@ -32,6 +32,7 @@ function stepLive(){
     if(ev.type==='half'){ LV.feed.unshift({k:'half', t:ev.text}); LV.count=[0,0]; LV.lastPitch=null; }
     if(ev.type==='sub') LV.feed.unshift({k:'sub', t:ev.text});
     if(LV.feed.length>120) LV.feed.length=120;
+    if(LV.speed!=='end' && LV.speed!=='inning' && LV.speed!=='pa') try{ liveSfx(ev); }catch(e){}
     if(LV.speed==='end') continue;
     if(LV.speed==='inning'){ if(ev.type==='half'){ LV.speed='normal'; LV.paused=true; renderLive(); return; } continue; }
     if(LV.speed==='pa'){ if(ev.type==='pa'){ LV.speed='normal'; LV.paused=true; renderLive(); return; } continue; }
@@ -41,6 +42,7 @@ function stepLive(){
   }
 }
 function finishLive(g){
+  try{ const sc=LV.ev?.score; BGM.crowdBed?.(false); if(sc && LV.uSide>=0 && BGM.crowd){ const my=sc[LV.uSide], op=sc[1-LV.uSide]; if(my!==op) BGM.crowd(my>op?'win':'lose'); } }catch(e){}
   const fin = LV.fin; clearTimeout(LV.timer); LV=null;
   fin(g); save();
   document.getElementById('live').innerHTML='';
@@ -174,3 +176,26 @@ function zoneSvg(){
 .lvc{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:7px 10px;line-height:1.35;border-radius:9px}
 .lvc b{font-size:13px}.lvc span{font-size:12px;color:var(--mute)}.lvc.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 22%,var(--panel2))}
 .lvm{font-size:11px!important;font-weight:700;padding:0 6px;border-radius:6px}.lvm.g{color:#3fb950!important;background:rgba(63,185,80,.12)}.lvm.r{color:#f0605a!important;background:rgba(240,96,90,.12)}.lvm.y{color:#d2c84a!important;background:rgba(210,200,74,.12)}`; document.head.appendChild(st); })();
+
+// 중계 상황별 관중 소리 (audio.js BGM.crowd): 우리 팀에 좋은 장면이면 환호, 나쁘면 탄식. 관전 경기는 홈 관중 기준
+function liveSfx(ev){
+  if(typeof BGM==='undefined' || !BGM.crowd || !ev) return;
+  const bat = ev.half, userBat = LV.uSide>=0 ? LV.uSide===bat : bat===1;
+  if(ev.type==='result'){
+    const t = String(ev.text||'');
+    let k = /홈런/.test(t)?'hr' : /2루타|3루타/.test(t)?'xbh' : /안타/.test(t)?'hit' : /병살/.test(t)?'dp' : /삼진/.test(t)?'k' : /도루 성공/.test(t)?'sb' : /도루 실패/.test(t)?'sbx' : null;
+    let good = userBat;
+    if(k==='k'||k==='dp'){ good = !userBat; }
+    if(k==='sbx'){ k='sb'; good = !userBat; }
+    const late = ev.inning>=7 ? 1.15 : 1;
+    if(k) BGM.crowd(k, good, late);
+    else if(ev.runs) BGM.crowd('run', userBat, late);
+  }
+  if(ev.type==='pa' && LV.uSide>=0){
+    const risp = !!(ev.bases[1]||ev.bases[2]), lead = LV.uSide===1 ? ev.score[1]-ev.score[0] : ev.score[0]-ev.score[1], key = ev.inning+'-'+ev.half;
+    if(risp && Math.abs(lead)<=3 && LV.cheerKey!==key){
+      if(userBat){ LV.cheerKey=key; BGM.crowd('chance'); }
+      else if(ev.inning>=6){ LV.cheerKey=key; BGM.crowd('crisis'); }
+    }
+  }
+}

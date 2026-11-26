@@ -155,12 +155,14 @@ const BGM = (() => {
   // 효과음: 배트에 공이 맞는 "딱!" — 나무 배트 타격음(날카로운 크랙 + 나무 울림 + 낮은 충격음 + 짧은 잔향)
   let sfxOut=null, sfxOn=true;
   try{ sfxOn = JSON.parse(localStorage.getItem('kboBgm')||'{}').sfx !== false; }catch(e){}
-  function batHit(power=1){
-    if(!sfxOn) return; init(); if(!ctx) return; ctx.resume();
+  function ensureSfx(){ init(); if(!ctx) return false; ctx.resume();
     if(!sfxOut){ sfxOut=ctx.createGain(); sfxOut.gain.value=0.85; sfxOut.connect(comp);
       const w=ctx.createGain(); w.gain.value=0.38; const cv=ctx.createConvolver(); cv.buffer=rev.buffer; sfxOut.connect(w); w.connect(cv); cv.connect(comp);                       // 야구장 잔향
       const sl=ctx.createDelay(0.5); sl.delayTime.value=0.11; const sg=ctx.createGain(); sg.gain.value=0.16; const sf=ctx.createBiquadFilter(); sf.type='lowpass'; sf.frequency.value=3500;
       sfxOut.connect(sl); sl.connect(sf); sf.connect(sg); sg.connect(comp); }                                   // 관중석에서 돌아오는 짧은 메아리
+    return true; }
+  function batHit(power=1){
+    if(!sfxOn || !ensureSfx()) return;
     const t=ctx.currentTime+0.005, p=power*(0.92+Math.random()*0.16), f0=1180*(0.97+Math.random()*0.06);
     // 1) 맑게 울리는 나무 공진음 ("깡"): 나무 막대처럼 비정수배 배음, 높은 음일수록 빨리 사라짐
     [[1,0.55,0.20],[2.76,0.26,0.09],[5.40,0.10,0.045],[0.47,0.24,0.13]].forEach(([r,a,d])=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine';
@@ -205,7 +207,7 @@ const BGM = (() => {
       g.gain.setValueAtTime(0.0001,tt); g.gain.linearRampToValueAtTime(0.035,tt+0.04); g.gain.exponentialRampToValueAtTime(0.0001,tt+0.4); o.connect(g); g.connect(sfxOut); o.start(tt); o.stop(tt+0.45); }
   }
   function fanfare(){
-    if(!sfxOn) return; init(); if(!ctx) return; ctx.resume(); batHit(0.01);   // sfxOut 준비
+    if(!sfxOn || !ensureSfx()) return;
     if(on){ out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(vol*0.12, ctx.currentTime, 0.1); out.gain.setTargetAtTime(vol*0.5, ctx.currentTime+5.2, 0.6); }
     const t0=ctx.currentTime+0.08, s=0.085;   // 짧은 음 길이
     // [음, 화음 아래 3도/4도] — 세 번째 구절은 한 음 더 길고 높게 끝난다
@@ -220,6 +222,52 @@ const BGM = (() => {
     const fin=t0+1.64+6*s; crash(fin, 0.24); timp(36, fin+0.0, 0.6); timp(36, fin+0.62, 0.45);
     roar(fin-0.15, 4.6, 0.3);
   }
+  // ---------- 중계 관중 소리 ----------
+  let bed=null;   // 경기 내내 깔리는 웅성거림
+  function crowdBed(onOff){
+    if(!onOff){ if(bed){ const b=bed; bed=null; b.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); setTimeout(()=>{ try{ b.src.forEach(x=>x.stop()); }catch(e){} }, 2000); } return; }
+    if(bed || !sfxOn || !ensureSfx()) return;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,ctx.currentTime); g.gain.linearRampToValueAtTime(0.05,ctx.currentTime+1.5); g.connect(sfxOut);
+    const src=[[400,1],[800,0.8],[1500,0.4]].map(([f,a])=>{ const s_=ctx.createBufferSource(); s_.buffer=noiseBuf; s_.loop=true; s_.playbackRate.value=0.7+Math.random()*0.3;
+      const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f; bp.Q.value=0.8; const ga=ctx.createGain(); ga.gain.value=a;
+      const l=ctx.createOscillator(), lg=ctx.createGain(); l.frequency.value=0.2+Math.random()*0.3; lg.gain.value=a*0.35; l.connect(lg); lg.connect(ga.gain); l.start();
+      s_.connect(bp); bp.connect(ga); ga.connect(g); s_.start(); return s_; });
+    bed={g, src};
+  }
+  function bedSwell(lvl, dur){ if(!bed) return; const t=ctx.currentTime; bed.g.gain.cancelScheduledValues(t); bed.g.gain.setTargetAtTime(lvl,t,0.15); bed.g.gain.setTargetAtTime(0.05,t+dur,0.8); }
+  function groan(t, lvl=0.16){ // 아쉬운 "우우~"
+    [300,520,900].forEach((f,i)=>{ const s_=ctx.createBufferSource(); s_.buffer=noiseBuf; s_.loop=true; const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=2.2;
+      bp.frequency.setValueAtTime(f*1.25,t); bp.frequency.exponentialRampToValueAtTime(f*0.8,t+1.3); const g=ctx.createGain();
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl*(1-i*0.25),t+0.25); g.gain.exponentialRampToValueAtTime(0.0001,t+1.5);
+      s_.connect(bp); bp.connect(g); g.connect(sfxOut); s_.start(t); s_.stop(t+1.6); });
+  }
+  function claps(t, n=10, spread=0.5, lvl=0.07){ for(let i=0;i<n;i++) sfxNoise(t+Math.random()*spread, 0.1, 'bandpass', 1100+Math.random()*1400, lvl*(0.6+Math.random()*0.6), 1.4); }
+  function chant(t, lvl=0.1){ // 응원 박수 "짝짝 짝짝짝" ×2 + 큰북
+    const beat=0.2, pat=[0,1,3,4,5];
+    for(let r=0;r<2;r++){ const st=t+r*beat*8; pat.forEach(k=>{ claps(st+k*beat, 12, 0.03, lvl); }); [0,3].forEach(k=>timp(43, st+k*beat, 0.35)); }
+  }
+  function drum(t, n=4, lvl=0.35){ for(let i=0;i<n;i++) timp(38, t+i*0.42, lvl*(i%2?0.7:1)); }   // 긴장감 있는 큰북
+  function sting(t){ // 짧은 브라스 "빠바밤!"
+    [[67,0],[67,0.09],[72,0.18]].forEach(([n,d],i)=>{ brass(n, t+d, i===2?0.5:0.07, 0.07); brass(n-5, t+d, i===2?0.5:0.07, 0.045, 0.2); }); }
+  let lastCrowd=0;
+  function liveCrowd(kind, good=true, power=1){
+    if(!sfxOn || !ensureSfx()) return; const t=ctx.currentTime+0.02, now=performance.now();
+    if(now-lastCrowd<250 && kind!=='hr' && kind!=='win') return; lastCrowd=now;
+    const L=power*(good?1:0.55);
+    switch(kind){
+      case 'hit':  if(good){ roar(t,1.6,0.16*L); claps(t+0.2,10,0.8); } else groan(t,0.1); break;
+      case 'xbh':  if(good){ roar(t,2.4,0.22*L); claps(t+0.2,16,1.2); } else groan(t,0.13); break;
+      case 'hr':   if(good){ roar(t,4.5,0.34*L); claps(t+0.3,30,2.5,0.09); sting(t+0.25); crash(t+0.25,0.16); bedSwell(0.14,4); } else { groan(t,0.18); } break;
+      case 'run':  if(good){ roar(t,2.2,0.2*L); claps(t+0.1,14,1); } break;
+      case 'k':    if(good){ roar(t,1.2,0.13*L); claps(t,8,0.5); } else groan(t,0.08); break;
+      case 'dp':   if(good){ roar(t,1.8,0.18*L); claps(t,12,0.8); } else groan(t,0.14); break;
+      case 'sb':   if(good){ roar(t,1.2,0.12*L); } else groan(t,0.09); break;
+      case 'chance': chant(t,0.085); bedSwell(0.1,3.5); break;
+      case 'crisis': drum(t,4,0.3); bedSwell(0.08,2.5); break;
+      case 'win':  roar(t,5.5,0.36); claps(t+0.2,40,4,0.09); sting(t+0.2); crash(t+0.2,0.2); break;
+      case 'lose': groan(t,0.12); break;
+    }
+  }
   function setSfx(v){ sfxOn=!!v; try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); p.sfx=sfxOn; localStorage.setItem('kboBgm', JSON.stringify(p)); }catch(e){} if(sfxOn) batHit(0.8); }
   // 플레이 버튼(시작·이어하기·계속·경기 중계·구단 선택 확정)을 누르면 "딱!"
   const PLAY_SEL = '.tt-go,.tt-save,.cont .go,.m-go,.pregame .pri';
@@ -231,7 +279,7 @@ const BGM = (() => {
     if(p.on!==false){ const go=()=>{ document.removeEventListener('pointerdown',go,true); document.removeEventListener('keydown',go,true); if(!on && prefs().on!==false) start(); };
       document.addEventListener('pointerdown',go,true); document.addEventListener('keydown',go,true); }  // 브라우저 정책: 첫 클릭 뒤 재생
   }
-  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, fanfare, setSfx, get sfx(){ return sfxOn; }};
+  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, fanfare, crowd:liveCrowd, crowdBed, setSfx, get sfx(){ return sfxOn; }};
 })();
 BGM.boot();
 // 구단을 골라 새 게임을 시작하면 팡파르와 함성 (확인 막대를 거쳐도 실제로 시작될 때만)
