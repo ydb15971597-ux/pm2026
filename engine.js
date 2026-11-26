@@ -352,6 +352,10 @@ function tm(b,pp,k){
 }
 const injMul = p=>(1.5-p.m.dur/20)*(has(p,'철인')||has(p,'철완')?0.4:1)*(has(p,'유리몸')?2:1)*(typeof hv==='function'?0.65+hv(p,'inj')/28:1);
 const runSpd = p=>(p.a.spd+p.a.brn)/2;
+const NOPLAN = {k:1,bb:1,hr:1,hit:1,pk:1,pbb:1,phr:1,phit:1,pc:0,ppc:0,sp:0,rp:0,steal:1,bunt:1,ro:0,rd:0};
+function probableStarter(t){ // 다음 선발 예상(로테이션 순서를 바꾸지 않음)
+  for(let i=0;i<5;i++){ const p=S.players[t.rotation[(t.rotIdx+i)%t.rotation.length]]; if(p&&!p.inj&&p.rest>=4) return p; }
+  return act1(t).filter(p=>p.isP&&!p.inj&&p.id!==t.closer).sort((a,b)=>(b.rest*2+b.a.sta)-(a.rest*2+a.a.sta))[0]; }
 function pickStarter(t){
   for(let i=0;i<5;i++){ const id=t.rotation[(t.rotIdx+i)%t.rotation.length]; const p=S.players[id];
     if(p&&!p.inj&&p.rest>=4){ t.rotIdx=(t.rotIdx+i+1)%t.rotation.length; return p; } }
@@ -429,7 +433,10 @@ function* gameGen(hid, aid, opt={}){
   calcDef(0); calcDef(1);
   const mgrB = T.map(t=>(t.mgr.tac-14)*0.05 + (t.staff['수석'].rating-12)*0.02 + ((t.staff['전력분석']?.rating??12)-12)*0.015 + (typeof campTac==='function'?campTac(t):0));
   const coachRun = T.map(t=>(t.staff['주루'].rating-12)*0.01);
-  const form = T.map(()=> (R()+R()+R()-1.5)*FORM_SD);   // 그날 팀 컨디션(이변 요소): 전력 차가 그대로 승패로 이어지지 않게
+  const form = T.map(()=> (R()+R()+R()-1.5)*FORM_SD);
+  T.forEach((t,i)=>{ form[i] += (typeof talkBoost==='function' && !opt.exhib) ? talkBoost(t) : 0; });
+  let PL = [NOPLAN, NOPLAN];   // 경기 플랜(공격·투수 운영) 효과 — manager.js
+  const shout = [0,0];         // 감독의 한마디(이번 이닝)   // 그날 팀 컨디션(이변 요소): 전력 차가 그대로 승패로 이어지지 않게
   const box = T.map(()=>({bat:{}, pit:[], hits:0, err:0}));
   const log = [];
   const score=[0,0], line=[[],[]], bi=[0,0];
@@ -443,7 +450,7 @@ function* gameGen(hid, aid, opt={}){
   function bline(side,p){ return box[side].bat[p.id] ||= {pid:p.id, pa:0,ab:0,h:0,d:0,t:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0,cs:0}; }
   function myLead(side){ return side===1?score[1]-score[0]:score[0]-score[1]; }
   function putPitcher(side, p, isSP){
-    const lim0 = isSP ? 52 + p.a.sta*3.3 + (T[side].tac.hook-1)*-8 + (has(p,'이닝이터')?10:0) - (has(p,'스태미너 부족')?10:0) : 16 + p.a.sta*1.1 + (has(p,'롱릴리프')?12:0);
+    const lim0 = isSP ? 52 + p.a.sta*3.3 + (T[side].tac.hook-1)*-8 + (has(p,'이닝이터')?10:0) - (has(p,'스태미너 부족')?10:0) : 16 + p.a.sta*1.1 + (has(p,'롱릴리프')?12:0) + (PL[side].rp||0);
     const lim = opt.exhib ? (isSP ? Math.min(lim0, 48+R()*22) : Math.min(lim0, 24)) : lim0;   // 시범경기: 선발은 짧게
     if(cur[side]) cur[side].exitLead = myLead(side);
     const st = {pid:p.id, p, isSP, lim, pc:0, outs:0, h:0, r:0, er:0, bb:0, k:0, hr:0, entryLead: myLead(side), exitLead:null};
@@ -451,6 +458,7 @@ function* gameGen(hid, aid, opt={}){
     if(!isSP){ const msg=`⚾ ${TD(T[side].id).name.split(' ')[0]} 투수 교체: ${p.name}`; if(wantLog) log.push(`<i>${msg}</i>`); subs.push(msg); }
   }
   putPitcher(0, (opt.sps&&S.players[opt.sps[0]])||pickStarter(T[0]), true); putPitcher(1, (opt.sps&&S.players[opt.sps[1]])||pickStarter(T[1]), true);
+  if(typeof planMods==='function' && !opt.exhib){ PL = [0,1].map(i=>planMods(T[i], T[1-i], cur[i].p, cur[1-i].p, lu[i], lu[1-i], park)); [0,1].forEach(i=>{ cur[i].lim += PL[i].sp||0; }); }
 
   function availRelievers(side){
     return actG(T[side]).filter(p=>p.isP && !p.inj && !used[side].has(p.id) && p.fat<30 && !T[side].rotation.includes(p.id));
@@ -528,11 +536,12 @@ function* gameGen(hid, aid, opt={}){
     if(cmd.ibb && fld===uSide) res.ibb=true;
     if(cmd.bunt && bat===uSide) res.bunt=true;
     if(cmd.steal && bat===uSide) res.steal=true;
+    if(cmd.shout && uSide>=0 && typeof shoutEffect==='function'){ const e=shoutEffect(cmd.shout, bat===uSide, bat===uSide?lu[bat][slotIdx].p:cur[fld].p, T[uSide], myLead(uSide)); shout[uSide]=e.v; subs.push(`📣 감독: "${e.say}" — ${e.react}`); if(wantLog) log.push(`<i>📣 ${e.say}</i>`); }
     return res;
   }
 
   function* half(bat){
-    const fld=1-bat; outs=0; bases=[null,null,null]; const runs0=score[bat]; half_=bat;
+    const fld=1-bat; outs=0; bases=[null,null,null]; const runs0=score[bat]; half_=bat; shout[0]=shout[1]=0;
     maybeChange(fld, inning, true);
     const tag = `${inning}회${bat?'말':'초'}`;
     if(live) yield {type:'half', ...snap(), text:`${tag} — ${TD(T[bat].id).name} 공격`};
@@ -552,7 +561,7 @@ function* gameGen(hid, aid, opt={}){
       const diff = myLead(bat);
       // 도루
       const stealRunner = bases[0] && !bases[1] ? 0 : (bases[1] && !bases[2] && !bases[0] ? 1 : -1);
-      if(stealRunner>=0 && outs<2){ const r=bases[stealRunner]; const tw=T[bat].tac.steal;
+      if(stealRunner>=0 && outs<2){ const r=bases[stealRunner]; const tw=T[bat].tac.steal*(PL[bat].steal||1);
         const tryIt = order.steal || (stealRunner===0 && r.a.stl>=12 && R() < (r.a.stl-11)*0.03*tw*(has(r,'대도')?1.5:1));
         if(tryIt){
           const ok = R() < 0.64+(r.a.stl-13)*0.035+(r.a.spd-12)*0.01-(catArm[fld]-12)*0.02-(pit.p.a.hold-10)*0.02-(has(pit.p,'견제의 달인')?0.08:0)+(has(pit.p,'퀵모션 약점')?0.08:0)+coachRun[bat]-(stealRunner===1?0.08:0);
@@ -565,7 +574,7 @@ function* gameGen(hid, aid, opt={}){
           if(outs>=3){ bi[bat]--; bl.pa--; break; }
         } }
       // 희생번트
-      const aiBunt = bases[0] && !bases[2] && outs===0 && inning>=7 && Math.abs(diff)<=1 && batVal(b)<12.5 && R()<0.25*T[bat].tac.bunt && !(T[bat].id===S.user && live);
+      const aiBunt = bases[0] && !bases[2] && outs===0 && inning>=7 && Math.abs(diff)<=1 && batVal(b)<12.5 && R()<0.25*T[bat].tac.bunt*(PL[bat].bunt||1) && !(T[bat].id===S.user && live);
       if((order.bunt || aiBunt) && (bases[0]||bases[1]) && outs<2){
         const seq = genPitchSeq('IP', pit.p, b); pit.pc+=seq.length;
         if(live) for(const x of seq.slice(0,-1)) yield {type:'pitch', ...snap(), ...x};
@@ -586,21 +595,22 @@ function* gameGen(hid, aid, opt={}){
         maybeMid(); continue;
       }
       const clutch = inning>=7 && Math.abs(diff)<=2 && !!(bases[1]||bases[2]);
-      const bm = batterMods(b, pit.p, clutch, post)+form[bat], pm = pitcherMods(pit.p, b, clutch, post)+form[fld];
+      const tp_ = typeof talkP==='function' && !opt.exhib;
+      const bm = batterMods(b, pit.p, clutch, post)+form[bat]+(PL[bat].ro||0)+shout[bat]+(tp_?talkP(b):0), pm = pitcherMods(pit.p, b, clutch, post)+form[fld]+(PL[fld].rd||0)+shout[fld]+(tp_?talkP(pit.p):0);
       const cm = condMul(b)*(1+gv(b));
       const Z=v=>12+(v-12)*SENS;   // 능력 차이 반영 강도 (리그 평균 12 기준)
       const c=Z((b.a.con+bm)*cm), gp=Z((b.a.gap+bm)*cm), po=Z((b.a.pow+bm)*cm), e=Z(b.a.eye), ak=Z(b.a.avk+bm*0.5), sp=Z(b.a.spd);
       const ps=Z((pe.stf*0.5+pe.vel*0.3+pe.fb*0.2)+pm), pb=Z(pe.brk+pm), pct_=Z(pe.ctl+pm*0.5);
       const mb = mgrB[bat]-mgrB[fld]*0.5;
-      const kP = 0.18*Math.exp(0.06*((ps+pb)/2 - (c*0.5+ak*0.5)))*Math.exp(-0.02*(e-12))*tm(b,pit.p,'k');
-      const bbP = 0.083*Math.exp(0.07*(e - pct_))*tm(b,pit.p,'bb');
+      const kP = 0.18*Math.exp(0.06*((ps+pb)/2 - (c*0.5+ak*0.5)))*Math.exp(-0.02*(e-12))*tm(b,pit.p,'k')*PL[bat].k*PL[fld].pk;
+      const bbP = 0.083*Math.exp(0.07*(e - pct_))*tm(b,pit.p,'bb')*PL[bat].bb*PL[fld].pbb;
       const hbpP = 0.011;
-      const hrP = 0.023*Math.exp(0.11*(po-12))*Math.exp(-0.055*((ps*0.6+pb*0.4)-12))*Math.exp(-0.04*(pit.p.a.gb-10))*park.hr*tm(b,pit.p,'hr');
-      const hitP = 0.322*Math.exp(0.035*(c-12)+mb*0.1)*Math.exp(-0.03*((ps+pb)/2-12))*(1-(def[fld]-12)*0.012)*(1+(sp-12)*0.006)*park.hit*tm(b,pit.p,'hit');
+      const hrP = 0.023*Math.exp(0.11*(po-12))*Math.exp(-0.055*((ps*0.6+pb*0.4)-12))*Math.exp(-0.04*(pit.p.a.gb-10))*park.hr*tm(b,pit.p,'hr')*PL[bat].hr*PL[fld].phr;
+      const hitP = 0.322*Math.exp(0.035*(c-12)+mb*0.1)*Math.exp(-0.03*((ps+pb)/2-12))*(1-(def[fld]-12)*0.012)*(1+(sp-12)*0.006)*park.hit*tm(b,pit.p,'hit')*PL[bat].hit*PL[fld].phit;
       let r = R(), kind;
       if(r<kP) kind='K'; else if((r-=kP)<bbP) kind='BB'; else if((r-=bbP)<hbpP) kind='HBP'; else if((r-=hbpP)<hrP) kind='HR'; else kind='IP';
       const seq = genPitchSeq(kind==='HR'?'IP':kind, pit.p, b);
-      pit.pc += seq.length;
+      pit.pc += Math.max(1, seq.length + (PL[bat].pc||0) + (PL[fld].ppc||0));
       if(live) for(const x of seq) yield {type:'pitch', ...snap(), ...x};
       let txt='', big=null; const before=score[bat];
       const walk = ()=>{ const rs=[]; if(bases[0]){ if(bases[1]){ if(bases[2]) rs.push(bases[2]); bases[2]=bases[1]; } bases[1]=bases[0]; } bases[0]=b; if(rs.length) scoreRuns(bat,rs.length,rs,b); };

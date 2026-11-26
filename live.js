@@ -7,7 +7,7 @@ function watchLive(){
   const m = todayMatch(); if(!m) return;
   const r = advanceDay((gen, fin, match)=>{
     const [h,a] = match;
-    LV = {gen, fin, home:h, away:a, uSide: a===S.user?0 : h===S.user?1 : -1, feed:[], speed:'normal', paused:false,
+    LV = {gen, fin, home:h, away:a, uSide: a===S.user?0 : h===S.user?1 : -1, feed:[], speed:(typeof pmPrefs==='function'&&pmPrefs().liveSpeed)||'normal', paused:false,
       queued:null, ev:null, count:[0,0], lastPitch:null, banner:null, timer:null, lastWasPa:false, post:S.phase==='post', exhib:S.phase==='off'};
   });
   if(r==='live'){ renderLive(); stepLive(); }
@@ -21,7 +21,7 @@ function stepLive(){
   clearTimeout(LV.timer);
   while(true){
     let cmd;
-    if(LV.lastWasPa){ cmd = LV.queued; LV.queued = null; }
+    if(LV.lastWasPa){ cmd = LV.queued; LV.queued = null; if(cmd&&cmd.shout){ LV.shoutN=(LV.shoutN||0)+1; LV.shoutKey=LV.ev.inning+'-'+LV.ev.half; } }
     const r = LV.gen.next(cmd);
     if(r.done){ finishLive(r.value); return; }
     const ev = r.value; LV.ev = ev; LV.lastWasPa = ev.type==='pa';
@@ -120,7 +120,8 @@ function renderLive(){
       <div class="lvh">투수 교체 — 지금 ${pit?`<b>${pit.name}</b> 투구수 ${ev.pc?.[fld]??0}`:''}${nb?` · 다음 타자 ${nb.name}(${nb.hand==='L'?'좌타':nb.hand==='S'?'양타':'우타'})`:''} <span class="mute">(누르면 다음 타석부터 등판)</span></div>
       <div class="lvgrid">${pen.map(pcard).join('')||'<span class="mute">나갈 수 있는 투수가 없어요</span>'}</div>`;
   } else ctrl = `<div class="mute">관전 모드 — 작전을 지시할 수 없습니다.</div>`;
-  const qTxt = Object.keys(q).length ? `<span class="pill tr">다음 타석 적용 예정: ${[q.bunt&&'번트',q.steal&&'도루',q.ibb&&'고의사구',q.ph&&('대타 '+S.players[q.ph]?.name),q.pr&&('대주자 '+S.players[q.pr]?.name),q.pitcher&&('투수 '+S.players[q.pitcher]?.name)].filter(Boolean).join(', ')}</span> <a href="#" onclick="liveCmd(null);return false">취소</a>` : '';
+  if(typeof shoutHtml==='function') ctrl = shoutHtml(ev, uBat, uFld) + ctrl;
+  const qTxt = Object.keys(q).length ? `<span class="pill tr">다음 타석 적용 예정: ${[q.bunt&&'번트',q.steal&&'도루',q.ibb&&'고의사구',q.ph&&('대타 '+S.players[q.ph]?.name),q.pr&&('대주자 '+S.players[q.pr]?.name),q.pitcher&&('투수 '+S.players[q.pitcher]?.name),q.shout&&'감독의 한마디'].filter(Boolean).join(', ')}</span> <a href="#" onclick="liveCmd(null);return false">취소</a>` : '';
   const banner = LV.banner && Date.now()<LV.bannerUntil ? `<div class="lvbanner">${LV.banner}</div>` : '';
   const sp = (k,l)=>`<button class="${LV.speed===k&&!LV.paused?'pri':''}" onclick="liveSpeed('${k}')">${l}</button>`;
   document.getElementById('live').innerHTML = `<div class="lvwrap"><div class="lv">

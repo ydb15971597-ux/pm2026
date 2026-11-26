@@ -525,7 +525,7 @@ window.confirm = function(msg){
 @keyframes pgB{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.pg-fwd,.pg-back,.toast,#cfbar{animation:none}}
 .viewpg h2:first-child{margin-top:0}
-tr[data-dnd]{cursor:grab}tr[data-dnd].dnd-src{opacity:.45}tr[data-dnd].dnd-over td{background:color-mix(in srgb,var(--acc) 28%,transparent)!important}
+tr[data-dnd]{cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}tr[data-dnd].dnd-src{opacity:.45}tr[data-dnd].dnd-over td{background:color-mix(in srgb,var(--acc) 28%,transparent)!important}
 .dnd-ghost{position:fixed;z-index:90;pointer-events:none;background:var(--acc);color:#fff;font-weight:700;padding:6px 12px;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.5);transform:translate(-50%,-120%);white-space:nowrap}
 .dnd-col.dnd-over{outline:2px dashed var(--acc);outline-offset:4px}`; document.head.appendChild(st); })();
 
@@ -555,10 +555,16 @@ function dndDrop(a, b){
   let st=null;
   document.addEventListener('pointerdown', e=>{
     const tr=e.target.closest && e.target.closest('tr[data-dnd]'); if(!tr || e.button>0 || e.target.closest('button,select,input')) return;
-    st={tr, x:e.clientX, y:e.clientY, on:false, over:null};
+    st={tr, x:e.clientX, y:e.clientY, on:false, over:null, touch:e.pointerType==='touch', armed:e.pointerType!=='touch'};
+    if(st.touch){ const me=st; me.t=setTimeout(()=>{ if(st!==me) return; me.armed=true; me.tr.classList.add('dnd-src'); try{ navigator.vibrate?.(15); }catch(_){} }, 280); }   // 터치: 길게 눌러 끌기
   });
+  // 끄는 중 화면 가장자리에 가면 자동 스크롤 (라인업 ↔ 벤치가 멀리 있어도 옮길 수 있게)
+  let edgeY=0, edgeRAF=0; const edgeLoop=()=>{ if(!st||!st.on||!edgeY){ edgeRAF=0; return; } scrollBy(0, edgeY); edgeRAF=requestAnimationFrame(edgeLoop); };
+  document.addEventListener('touchmove', e=>{ if(st && st.armed && st.touch) e.preventDefault(); }, {passive:false});
   document.addEventListener('pointermove', e=>{
     if(!st) return;
+    if(!st.armed){ if(Math.hypot(e.clientX-st.x,e.clientY-st.y)>8){ clearTimeout(st.t); st=null; } return; }
+    const H=innerHeight, z=70; edgeY = e.clientY<z ? -Math.ceil((z-e.clientY)/4) : e.clientY>H-z ? Math.ceil((e.clientY-(H-z))/4) : 0; if(edgeY && st.on && !edgeRAF) edgeRAF=requestAnimationFrame(edgeLoop);
     if(!st.on){ if(Math.hypot(e.clientX-st.x,e.clientY-st.y)<7) return; st.on=true; st.tr.classList.add('dnd-src');
       st.g=document.createElement('div'); st.g.className='dnd-ghost'; st.g.textContent=(st.tr.querySelector('b')?.textContent||'선수')+' 이동'; document.body.appendChild(st.g); }
     e.preventDefault(); st.g.style.left=e.clientX+'px'; st.g.style.top=e.clientY+'px';
@@ -566,7 +572,7 @@ function dndDrop(a, b){
     if(!t && el){ const col=el.closest('.dnd-col'); if(col) t=col; }
     if(st.over!==t){ st.over?.classList.remove('dnd-over'); st.over=t; t?.classList.add('dnd-over'); }
   });
-  const end=e=>{ if(!st) return; const s=st; st=null;
+  const end=e=>{ if(!st) return; const s=st; st=null; clearTimeout(s.t); edgeY=0; if(!s.on){ s.tr.classList.remove('dnd-src'); }
     if(s.on && e && e.clientX!=null){ const el=document.elementFromPoint(e.clientX,e.clientY); const t=el&&(el.closest('tr[data-dnd]')||el.closest('.dnd-col')); if(t){ s.over?.classList.remove('dnd-over'); s.over=t; } } s.tr.classList.remove('dnd-src'); s.g?.remove(); s.over?.classList.remove('dnd-over');
     if(s.on && s.over){ const a=s.tr.dataset.dnd, b=s.over.dataset.dnd; dndDrop(a,b);
       const block=ev=>{ ev.stopPropagation(); ev.preventDefault(); }; document.addEventListener('click',block,{capture:true,once:true}); setTimeout(()=>document.removeEventListener('click',block,{capture:true}),50); } };
@@ -991,3 +997,13 @@ if(!S) render();   // 타이틀 화면에 '저장 파일 불러오기' 버튼 �
 (function(){ const _r=render; render=function(){ _r(); if(!S) return; const tb=document.querySelector('.tb1'); if(!tb || tb.querySelector('.pmhome')) return;
   const b=document.createElement('button'); b.className='pmhome'; b.title='메인 화면'; b.setAttribute('aria-label','메인 화면으로'); b.style.cssText='background:none;border:0;padding:0 8px 0 0;display:flex;align-items:center;cursor:pointer';
   b.innerHTML=pmIcon(34); b.onclick=()=>{ if(!LV) quit(); }; tb.insertBefore(b, tb.firstChild); }; })();
+// 트레이드 제안: 역제안 받기
+proposeTrade = function(){
+  if(S.phase==='post'){ alert('포스트시즌에는 트레이드할 수 없습니다.'); return; }
+  const r=evaluateTrade(tradeGive,tradeGet,tradeTeam);
+  if(r.ok){ if(confirm(r.msg+'\n\n트레이드를 확정할까요?')){ doTrade(tradeGive,tradeGet,tradeTeam); tradeGive=[]; tradeGet=[]; save(); render(); } return; }
+  if(r.counter){ const p=P(r.counter.add);
+    if(confirm(`${r.msg}\n\n역제안을 받아들이면 ${p.name}도 함께 보냅니다. 수락할까요?`)){ tradeGive=[...tradeGive, p.id]; doTrade(tradeGive,tradeGet,tradeTeam); tradeGive=[]; tradeGet=[]; save(); render(); alert('역제안을 받아들여 트레이드가 성사됐어요.'); }
+    return; }
+  alert(r.msg);
+};
