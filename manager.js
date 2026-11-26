@@ -330,6 +330,7 @@ PAGES.settings = ()=>{
       <div class="setrow"><span>중계 기본 속도</span><div class="plg">${opt('liveSpeed','slow','느리게',p.liveSpeed||'normal')}${opt('liveSpeed','normal','보통',p.liveSpeed||'normal')}${opt('liveSpeed','fast','빠르게',p.liveSpeed||'normal')}</div></div>
       <div class="setrow"><span>배경음악</span><div class="plg"><button class="planc ${BGM.on?'on':''}" onclick="BGM.toggle();setTimeout(render,50)"><b>${BGM.on?'켜짐':'꺼짐'}</b></button>
         <input type="range" min="0" max="1" step="0.05" value="${BGM.vol??0.35}" oninput="BGM.setVol(+this.value)" aria-label="배경음악 음량" style="width:160px"></div></div>
+      <div class="setrow"><span>효과음<br><span class="mute" style="font-size:12px">플레이 버튼을 누를 때 타격음</span></span><div class="plg"><button class="planc ${BGM.sfx?'on':''}" onclick="BGM.setSfx(!BGM.sfx);render()"><b>${BGM.sfx?'켜짐':'꺼짐'}</b></button></div></div>
       <div class="setrow"><span>화면 효과</span><div class="plg"><label class="row" style="gap:6px"><input type="checkbox" ${p.noanim?'checked':''} onchange="setPref('noanim',this.checked)"> 애니메이션 줄이기</label></div></div>
     </div>
     <div class="panel"><h3>저장</h3>

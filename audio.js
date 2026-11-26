@@ -32,7 +32,7 @@ const BGM = (() => {
   let ctx=null, out=null, comp=null, rev=null, revIn=null, dly=null, dlyIn=null, noiseBuf=null, timer=null, watch=null;
   let step=0, nextT=0, on=false, vol=0.35, cur='main', want='main';
   function prefs(){ try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); if(typeof p.vol==='number') vol=p.vol; return p; }catch(e){ return {}; } }
-  function savePrefs(){ try{ localStorage.setItem('kboBgm', JSON.stringify({on, vol})); }catch(e){} }
+  function savePrefs(){ try{ const o=JSON.parse(localStorage.getItem('kboBgm')||'{}'); localStorage.setItem('kboBgm', JSON.stringify({...o, on, vol})); }catch(e){ try{ localStorage.setItem('kboBgm', JSON.stringify({on, vol})); }catch(_){} } }
   function init(){
     if(ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
@@ -152,12 +152,36 @@ const BGM = (() => {
 #bgm input{width:80px;accent-color:#e5383b}body.mob #bgm{display:none}@media (max-width:760px){#bgm{display:none}}`; document.head.appendChild(st); }
     el.innerHTML=`<button aria-label="배경음악 ${on?'끄기':'켜기'}" onclick="BGM.toggle()">${on?'♪ BGM 켜짐':'♪ BGM 꺼짐'}</button><input type="range" min="0" max="1" step="0.05" value="${vol}" aria-label="배경음악 음량" oninput="BGM.setVol(+this.value)">`;
   }
+  // 효과음: 배트에 공이 맞는 "딱!" — 나무 배트 타격음(날카로운 크랙 + 나무 울림 + 낮은 충격음 + 짧은 잔향)
+  let sfxOut=null, sfxOn=true;
+  try{ sfxOn = JSON.parse(localStorage.getItem('kboBgm')||'{}').sfx !== false; }catch(e){}
+  function batHit(power=1){
+    if(!sfxOn) return; init(); if(!ctx) return; ctx.resume();
+    if(!sfxOut){ sfxOut=ctx.createGain(); sfxOut.gain.value=0.9; sfxOut.connect(comp); const w=ctx.createGain(); w.gain.value=0.18; sfxOut.connect(w); w.connect(rev); }
+    const t=ctx.currentTime+0.005, p=power*(0.9+Math.random()*0.2);
+    // 1) 크랙: 아주 짧은 고역 노이즈
+    const n=ctx.createBufferSource(); n.buffer=noiseBuf; const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1800;
+    const bp=ctx.createBiquadFilter(); bp.type='peaking'; bp.frequency.value=3200; bp.gain.value=9; bp.Q.value=1.2;
+    const ng=ctx.createGain(); ng.gain.setValueAtTime(0.0001,t); ng.gain.linearRampToValueAtTime(0.95*p,t+0.0015); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.075);
+    n.connect(hp); hp.connect(bp); bp.connect(ng); ng.connect(sfxOut); n.start(t); n.stop(t+0.1);
+    // 2) 나무 울림: 빠르게 꺼지는 비정수배 공진음
+    [[920,0.32,0.09],[1480,0.2,0.06],[2650,0.12,0.04],[430,0.22,0.12]].forEach(([f,a,d])=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(f*(1+Math.random()*0.03),t); o.frequency.exponentialRampToValueAtTime(f*0.93,t+d);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(a*p,t+0.001); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t+d+0.02); });
+    // 3) 공이 찌그러지는 낮은 충격음
+    const k=ctx.createOscillator(), kg=ctx.createGain(); k.frequency.setValueAtTime(190,t); k.frequency.exponentialRampToValueAtTime(70,t+0.05);
+    kg.gain.setValueAtTime(0.5*p,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.07); k.connect(kg); kg.connect(sfxOut); k.start(t); k.stop(t+0.09);
+  }
+  function setSfx(v){ sfxOn=!!v; try{ const p=JSON.parse(localStorage.getItem('kboBgm')||'{}'); p.sfx=sfxOn; localStorage.setItem('kboBgm', JSON.stringify(p)); }catch(e){} if(sfxOn) batHit(0.8); }
+  // 플레이 버튼(시작·이어하기·계속·경기 중계·구단 선택 확정)을 누르면 "딱!"
+  const PLAY_SEL = '.tt-go,.tt-save,.cont .go,.m-go,.pdet .go,.pregame .pri';
+  document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest(PLAY_SEL); if(b && !b.disabled) batHit(b.classList.contains('live')?1.15:1); }, true);
+  document.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && document.activeElement?.matches?.(PLAY_SEL)) batHit(); }, true);
   function boot(){
     const p=prefs(); ui();
     watch = setInterval(()=>{ want = (typeof LV!=='undefined' && LV) ? 'game' : 'main'; }, 500);
     if(p.on!==false){ const go=()=>{ document.removeEventListener('pointerdown',go,true); document.removeEventListener('keydown',go,true); if(!on && prefs().on!==false) start(); };
       document.addEventListener('pointerdown',go,true); document.addEventListener('keydown',go,true); }  // 브라우저 정책: 첫 클릭 뒤 재생
   }
-  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }};
+  return {start, stop, toggle(){ on?stop():start(); }, setVol, boot, get on(){ return on; }, get vol(){ return vol; }, get track(){ return cur; }, hit:batHit, setSfx, get sfx(){ return sfxOn; }};
 })();
 BGM.boot();
