@@ -31,7 +31,9 @@ function mTables(){
     if(tb.closest('.msec-hide')) return;
     const box=tb.parentElement; if(!box) return;
     if(tb.scrollWidth <= Math.min(box.clientWidth, innerWidth-24) + 6) return;
-    const heads=[...(tb.tHead?.rows[tb.tHead.rows.length-1]?.cells||[])].map(th=>th.textContent.trim());
+    let hr = tb.tHead?.rows[tb.tHead.rows.length-1];
+    if(!hr){ const r0=tb.rows[0]; if(r0 && [...r0.cells].every(c=>c.tagName==='TH')){ hr=r0; r0.classList.add('mc-head'); } }   // thead 없이 첫 줄이 머리글인 표
+    const heads=[...(hr?.cells||[])].map(th=>th.textContent.trim());
     tb.classList.add('mcard');
     // 카드가 길어지지 않게 덜 중요한 칸부터 숨김 (이름 + 핵심 5칸 정도만)
     const MINOR=['상태','투타','특성','주요 능력','컨디션','국적','계약','연봉','잔여','키','체중','성격','등번호','학년','학교'];

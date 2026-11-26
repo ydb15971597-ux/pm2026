@@ -923,6 +923,8 @@ body.ttl #bgm{display:none!important}
   body.mob table.mcard td:has(.pn) ~ td:has(button){margin-left:auto}
   body.mob table.mcard td:empty{display:none}
   body.mob table.mcard td.mc-x{display:none}
+  body.mob table.mcard tr.mc-head{display:none}
+  body.mob .hero .stars{font-size:13px}
   body.mob #content h2:not(.m-big){display:none}
   body.mob #content h2 + p{display:none}
   body.mob table.mcard td .mute{display:none}
@@ -933,6 +935,11 @@ body.ttl #bgm{display:none!important}
   body.mob table.mcard select{min-height:36px;font-size:14px;padding:4px 8px}
   body.mob table.mcard button{min-height:34px;padding:4px 12px;font-size:13px}
 }
+
+/* 별점: 회색 별(.bg)과 금색 별(.fg)을 같은 칸에 겹쳐 그린다. 바깥 규칙(span{display:block}, 줄 높이 등)이 바뀌어도 어긋나지 않게 */
+.stars{display:inline-grid!important;line-height:1!important;vertical-align:middle;justify-items:start}
+.stars>.bg,.stars>.fg{grid-area:1/1;display:block!important;line-height:1!important;margin:0!important;padding:0!important;font-size:inherit!important;letter-spacing:inherit}
+.stars>.fg{position:static!important;overflow:hidden;white-space:nowrap}
 </style>
 </head>
 <body>
