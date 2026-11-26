@@ -1,6 +1,7 @@
 // 프로야구 매니저 PM — 실시간 경기 중계 화면
 let LV = null;
-const LV_SPEED = {slow:1200, normal:600, fast:170};
+const LV_SPEED = {xslow:2000, slow:1200, normal:600, fast:250, xfast:70};
+const LV_SPEEDS = [['xslow','아주 느리게'],['slow','느리게'],['normal','보통'],['fast','빠르게'],['xfast','아주 빠르게']];
 
 function watchLive(){
   if(LV || S.fired) return;
@@ -33,6 +34,7 @@ function stepLive(){
     if(ev.type==='sub') LV.feed.unshift({k:'sub', t:ev.text});
     if(LV.feed.length>120) LV.feed.length=120;
     if(LV.speed!=='end' && LV.speed!=='inning' && LV.speed!=='pa') try{ liveSfx(ev); }catch(e){}
+    if(liveAutoStop(ev)){ renderLive(); return; }
     if(LV.speed==='end') continue;
     if(LV.speed==='inning'){ if(ev.type==='half'){ LV.speed='normal'; LV.paused=true; renderLive(); return; } continue; }
     if(LV.speed==='pa'){ if(ev.type==='pa'){ LV.speed='normal'; LV.paused=true; renderLive(); return; } continue; }
@@ -70,6 +72,11 @@ function lights(n, total, color){ return Array.from({length:total},(_,i)=>`<i st
 
 function renderLive(){
   if(!LV) return;
+  const sw=document.querySelector('#live .lvwrap')?.scrollTop||0, sc=document.querySelector('#live .lvctrl')?.scrollTop||0;
+  renderLive0();
+  const w=document.querySelector('#live .lvwrap'); if(w) w.scrollTop=sw; const c=document.querySelector('#live .lvctrl'); if(c) c.scrollTop=sc;
+}
+function renderLive0(){
   const ev = LV.ev || {inning:1, half:0, outs:0, bases:[null,null,null], score:[0,0], line:[[],[]], pitcher:[null,null], pc:[0,0]};
   const ids=[LV.away, LV.home];
   const n = Math.max(9, ev.line[0].length, ev.line[1].length + (ev.half===1?1:0));
@@ -128,7 +135,7 @@ function renderLive(){
   const sp = (k,l)=>`<button class="${LV.speed===k&&!LV.paused?'pri':''}" onclick="liveSpeed('${k}')">${l}</button>`;
   document.getElementById('live').innerHTML = `<div class="lvwrap"><div class="lv">
     <div class="row" style="justify-content:space-between;margin-bottom:10px"><div class="row"><span class="livedot"></span><b>LIVE</b><span class="mute">${TD(LV.home).stadium} · ${fmtDate(S.date)}</span></div>
-      <div class="row"><button onclick="livePause()">${LV.paused?'▶ 재개':'⏸ 일시정지'}</button>${sp('slow','느리게')}${sp('normal','보통')}${sp('fast','빠르게')}<button onclick="liveSpeed('pa')">다음 타석</button><button onclick="liveSpeed('inning')">다음 이닝</button><button onclick="liveSpeed('end')">경기 끝까지</button></div></div>
+      <div class="row"><button onclick="livePause()">${LV.paused?'▶ 재개':'⏸ 일시정지'}</button><button class="${liveAutoOn()?'on':''} lvauto" onclick="liveAutoToggle()" title="승부처(6회 이후 득점권·접전, 투구수 많은 투수)에서 자동으로 멈추고 작전 창을 엽니다">승부처 자동 정지 ${liveAutoOn()?'ON':'OFF'}</button>${LV_SPEEDS.map(([k,l])=>sp(k,l)).join('')}<button onclick="liveSpeed('pa')">다음 타석</button><button onclick="liveSpeed('inning')">다음 이닝</button><button onclick="liveSpeed('end')">경기 끝까지</button></div></div>
     <div class="card" style="overflow:auto;padding:8px 12px">${ls}</div>
     <div class="lvmain">
       <div class="card lvfield">${banner}
@@ -140,8 +147,11 @@ function renderLive(){
       <div class="lvside">${pCard}<div class="vs">VS</div>${bCard}</div>
       <div class="card lvfz"><div class="lvzone"><h3>투구 위치 <span class="mute" style="font-size:12px;font-weight:400">ABS 존 · 포수 시점</span></h3>${zoneSvg()}</div><div class="lvfeed"><h3>문자 중계</h3>${LV.feed.map(f=>`<div class="fd fd-${f.k}">${f.c?`<span class="cnt">${f.c}</span>`:''}${f.t}</div>`).join('')}</div></div>
     </div>
-    <div class="card" style="margin-top:12px">${ctrl}<div style="margin-top:6px">${qTxt}</div>
-      <div class="mute" style="font-size:12px;margin-top:6px">작전은 다음 타석 시작 때 적용됩니다. 일시정지 후 지시하면 편합니다. 지시하지 않으면 수석코치가 알아서 운영합니다.</div></div>
+    <div class="card lvctrl ${LV.drawer?'open':''}" role="dialog" aria-label="작전 지시">
+      <div class="lvdh"><b>작전 지시</b><span class="mute">${ev.inning}회${ev.half?'말':'초'} · ${ev.outs}아웃 · ${LV.paused?'일시정지 중':'진행 중'}</span><span style="flex:1"></span><button class="pri" onclick="liveGo()">적용하고 계속 ▶</button><button onclick="liveDrawer(false)" aria-label="작전 창 닫기">✕</button></div>
+      ${ctrl}<div style="margin-top:6px">${qTxt}</div>
+      <div class="mute" style="font-size:12px;margin-top:6px">작전은 다음 타석 시작 때 적용됩니다. 지시하지 않으면 수석코치가 알아서 운영합니다.</div></div>
+    ${LV.uSide>=0?`<button class="lvfab ${Object.keys(q).length?'has':''}" onclick="liveDrawer()">${LV.drawer?'✕ 닫기':'⚾ 작전'}${Object.keys(q).length?`<i>${Object.keys(q).length}</i>`:''}</button>`:''}
   </div></div>`;
 }
 
@@ -201,4 +211,29 @@ function liveSfx(ev){
       else if(ev.inning>=6){ LV.cheerKey=key; BGM.crowd('crisis'); }
     }
   }
+}
+
+// ---------- 작전 창 (스크롤 없이 바로 지시) · 승부처 자동 정지 ----------
+function liveDrawer(open){
+  if(!LV) return; const want = open==null ? !LV.drawer : !!open;
+  if(want && !LV.drawer){ LV.drawer=true; if(!LV.paused){ LV.paused=true; clearTimeout(LV.timer); LV.autoP=true; } }
+  else if(!want && LV.drawer){ LV.drawer=false; if(LV.autoP){ LV.autoP=false; LV.paused=false; clearTimeout(LV.timer); LV.timer=setTimeout(stepLive,150); } }
+  renderLive();
+}
+function liveGo(){ if(!LV) return; LV.drawer=false; LV.autoP=false; LV.paused=false; clearTimeout(LV.timer); LV.timer=setTimeout(stepLive,120); renderLive(); }
+function liveAutoOn(){ try{ return (typeof pmPrefs==='function'?pmPrefs().liveAuto:undefined)!==false; }catch(e){ return true; } }
+function liveAutoToggle(){ if(typeof setPref==='function') setPref('liveAuto', !liveAutoOn()); renderLive(); }
+// 승부처면 멈추고 작전 창을 연다 (반이닝마다 한 번)
+function liveAutoStop(ev){
+  if(!LV || LV.uSide<0 || ev.type!=='pa' || !liveAutoOn() || LV.exhib) return false;
+  if(['end','inning','pa'].includes(LV.speed)) return false;
+  const lead = LV.uSide===1 ? ev.score[1]-ev.score[0] : ev.score[0]-ev.score[1], risp=!!(ev.bases[1]||ev.bases[2]);
+  const uFld = LV.uSide!==ev.bat, pc = ev.pc?.[LV.uSide]??0;
+  const key = ev.inning+'-'+ev.half;
+  const hot = (ev.inning>=6 && Math.abs(lead)<=3 && risp) || (uFld && pc>=100 && Math.abs(lead)<=4 && LV.pcKey!==ev.pitcher?.[LV.uSide]?.id);
+  if(!hot || LV.autoKey===key) return false;
+  LV.autoKey=key; if(uFld && pc>=100) LV.pcKey=ev.pitcher?.[LV.uSide]?.id;
+  LV.paused=true; clearTimeout(LV.timer); LV.drawer=true; LV.autoP=true;
+  LV.banner = uFld ? (risp?'실점 위기! 작전을 정하세요':'투구수 '+pc+'개 — 교체할까요?') : '득점 찬스! 작전을 정하세요'; LV.bannerUntil=Date.now()+2500;
+  return true;
 }

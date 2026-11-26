@@ -940,6 +940,60 @@ body.ttl #bgm{display:none!important}
 .stars{display:inline-grid!important;line-height:1!important;vertical-align:middle;justify-items:start}
 .stars>.bg,.stars>.fg{grid-area:1/1;display:block!important;line-height:1!important;margin:0!important;padding:0!important;font-size:inherit!important;letter-spacing:inherit}
 .stars>.fg{position:static!important;overflow:hidden;white-space:nowrap}
+
+/* ---------- 중계 작전 창 (live.js): 스크롤하지 않고 바로 지시 ---------- */
+.lvctrl{position:fixed!important;top:0;right:0;bottom:0;width:min(460px,100vw);margin:0!important;z-index:70;overflow-y:auto;border-radius:22px 0 0 22px!important;padding:16px 18px 24px!important;
+  background:var(--panel)!important;box-shadow:-18px 0 50px rgba(0,0,0,.55)!important;transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);visibility:hidden}
+.lvctrl.open{transform:none;visibility:visible}
+.lvdh{display:flex;align-items:center;gap:8px;position:sticky;top:-16px;z-index:2;background:var(--panel);margin:-16px -18px 12px;padding:14px 18px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.lvdh b{font-size:17px}
+.lvfab{position:fixed;right:22px;bottom:22px;z-index:71;min-height:54px;padding:0 22px!important;border-radius:999px!important;border:0!important;background:var(--acc)!important;color:#fff;font-size:16px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.5)}
+.lvfab.has{background:#f04452!important}
+.lvfab i{font-style:normal;display:inline-block;min-width:20px;height:20px;line-height:20px;border-radius:10px;background:#fff;color:#111;font-size:12px;margin-left:8px;text-align:center}
+.lvauto.on{background:color-mix(in srgb,var(--acc) 30%,var(--panel2))!important;color:#fff}
+@media (max-width:760px){
+  .lvctrl{top:auto;left:0;width:100%;max-height:72vh;border-radius:24px 24px 0 0!important;transform:translateY(105%);padding:14px 14px calc(18px + env(safe-area-inset-bottom))!important;box-shadow:0 -14px 40px rgba(0,0,0,.55)!important}
+  .lvdh{top:-14px;margin:-14px -14px 10px;padding:12px 14px 10px}
+  .lvdh .mute{width:100%;order:3;font-size:12px}
+  .lvfab{right:14px;bottom:calc(14px + env(safe-area-inset-bottom));min-height:52px}
+  body.mob .lvwrap{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+}
+
+/* ---------- PC: FM식 상단 탭 메뉴 (desktop.js PC_SIDEBAR=false) ---------- */
+body.pc #app{padding-left:0!important}
+body.pc .tb1 .hist,body.pc .tb1 .tcrest,body.pc .tb1 .menus,body.pc .tb1 .pmhome{display:flex!important}
+body.pc .tb1{height:68px;padding:0 24px;gap:10px;display:flex;align-items:center}
+body.pc .tb1 .menus{gap:4px;align-items:center;height:100%}
+body.pc .menu>button{height:44px;margin:0;padding:0 18px;border-radius:12px!important;font-size:15.5px;font-weight:700;opacity:.75;background:none}
+body.pc .menu>button:hover{opacity:1;background:rgba(255,255,255,.06)}
+body.pc .menu.on>button{opacity:1;background:#fff!important;color:#111;box-shadow:none}
+body.pc .menu.on>button svg{color:#111}
+body.pc .datebox .rec{display:inline-block}
+body.pc .tb2{padding:10px 24px 12px}
+body.pc .subtabs .crumb{display:inline-flex;align-items:center;background:none!important;font-size:20px;font-weight:800;color:#fff;padding:0 14px 0 0;margin-right:4px;border-right:1px solid var(--line2)}
+body.pc .content{padding:10px 24px 24px;max-width:1720px;margin:0 auto}
+body.pc #toasts{left:50%}
+body.pc #cfbar{left:50%;top:84px}
+body.pc .m-sum{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-bottom:16px}
+body.pc .m-card{background:var(--panel);border-radius:24px;padding:24px 26px}
+body.pc .m-hero{background:radial-gradient(520px 240px at 0 0,color-mix(in srgb,var(--acc) 38%,transparent),transparent 70%),var(--panel)}
+body.pc .m-lab{font-size:14px;color:var(--mute);font-weight:600}
+body.pc .m-big{font-size:52px;font-weight:800;letter-spacing:-2px;line-height:1.1;margin-top:4px}
+body.pc .m-big small{font-size:24px;margin-left:2px}
+body.pc .m-sub{font-size:16px;color:var(--text2);margin-top:4px}
+body.pc .m-match{width:100%;margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,255,255,.07)!important;border-radius:18px!important;padding:14px 18px!important;color:#fff;text-align:left}
+body.pc .m-match>span:last-child{display:flex;align-items:center;gap:2px;font-weight:700}
+body.pc .m-vs{display:flex;align-items:center;gap:8px}
+body.pc .m-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;background:var(--panel);border-radius:24px;padding:18px}
+body.pc .m-quick button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--panel2);border-radius:18px;font-size:14px;color:var(--text2);padding:16px 0}
+body.pc .m-qi{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--acc) 22%,var(--panel2));color:var(--accL)}
+body.pc .tb1{min-width:0}
+body.pc .tb1 .menus{flex:0 1 auto;min-width:0}
+body.pc .cont{flex:0 1 auto;min-width:0}
+body.pc .cont button{padding:0 12px;white-space:nowrap}
+body.pc .cont .go{min-width:150px}
+@media (max-width:1500px){ body.pc .menu>button{padding:0 12px;font-size:15px} body.pc .tb1{padding:0 16px} body.pc .datebox span{display:none} }
+@media (max-width:1300px){ body.pc .cont button:not(.go):nth-of-type(n+3){display:none} }
 </style>
 </head>
 <body>

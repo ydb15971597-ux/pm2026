@@ -3,11 +3,13 @@
 // 페이지 내용(PAGES.*)은 그대로 쓰고, 모양은 index.html 끝 'PC' 블록에서만 바꾼다. mobile.js 다음에 로드.
 const PC_Q = window.matchMedia('(min-width: 1101px)');
 const isPC = () => PC_Q.matches;
+const PC_SIDEBAR = false;   // true면 왼쪽 사이드바 메뉴, false면 FM식 상단 탭 메뉴
 const PC_GI = { portal:'home', squad:'squad', scout:'scout', train:'tactics', club:'won' };
 function pcChrome(){
   document.body.classList.toggle('pc', isPC() && !!S);
   document.querySelectorAll('.d-side').forEach(e=>e.remove());
   if(!S || !isPC()) return;
+  if(!PC_SIDEBAR) return;   // FM처럼 상단 탭 메뉴를 쓴다 (사이드바 끔)
   const app=document.getElementById('app'); if(!app) return;
   const u=S.teams[S.user], unread=S.inbox.filter(m=>!m.read).length;
   const grp = PAGE_GROUP[page] || PAGE_GROUP[prevPage] || 'portal';

@@ -327,7 +327,8 @@ PAGES.settings = ()=>{
     <div class="panel"><h3>환경설정</h3>
       <div class="setrow"><span>글자 크기</span><div class="plg">${opt('font','s','작게',p.font||'m')}${opt('font','m','보통',p.font||'m')}${opt('font','l','크게',p.font||'m')}</div></div>
       <div class="setrow"><span>경기 전 준비 화면<br><span class="mute" style="font-size:12px">기자회견·선수단 미팅·플랜</span></span><div class="plg">${opt('pre','big','중요한 경기만',preMode())}${opt('pre','all','매 경기',preMode())}${opt('pre','off','안 보기',preMode())}</div></div>
-      <div class="setrow"><span>중계 기본 속도</span><div class="plg">${opt('liveSpeed','slow','느리게',p.liveSpeed||'normal')}${opt('liveSpeed','normal','보통',p.liveSpeed||'normal')}${opt('liveSpeed','fast','빠르게',p.liveSpeed||'normal')}</div></div>
+      <div class="setrow"><span>중계 기본 속도</span><div class="plg">${[['xslow','아주 느리게'],['slow','느리게'],['normal','보통'],['fast','빠르게'],['xfast','아주 빠르게']].map(([k,l])=>opt('liveSpeed',k,l,p.liveSpeed||'normal')).join('')}</div></div>
+      <div class="setrow"><span>승부처 자동 정지<br><span class="mute" style="font-size:12px">6회 이후 득점권 접전·투구수 100개 넘은 우리 투수</span></span><div class="plg"><button class="planc ${p.liveAuto!==false?'on':''}" onclick="setPref('liveAuto',${p.liveAuto===false});render()"><b>${p.liveAuto!==false?'켜짐':'꺼짐'}</b></button></div></div>
       <div class="setrow"><span>배경음악</span><div class="plg"><button class="planc ${BGM.on?'on':''}" onclick="BGM.toggle();setTimeout(render,50)"><b>${BGM.on?'켜짐':'꺼짐'}</b></button>
         <input type="range" min="0" max="1" step="0.05" value="${BGM.vol??0.35}" oninput="BGM.setVol(+this.value)" aria-label="배경음악 음량" style="width:160px"></div></div>
       <div class="setrow"><span>효과음<br><span class="mute" style="font-size:12px">플레이 버튼을 누를 때 타격음</span></span><div class="plg"><button class="planc ${BGM.sfx?'on':''}" onclick="BGM.setSfx(!BGM.sfx);render()"><b>${BGM.sfx?'켜짐':'꺼짐'}</b></button></div></div>
@@ -379,6 +380,6 @@ let pickSel = null, pickMore = false;
     <div class="foot" style="margin-top:18px">※ 모든 구단·선수·감독·코치는 한국 프로야구를 참고해 만든 가상 설정입니다. 실제 구단·인물과 관계없습니다.</div></div>`;
 }; }
 // PC 홈에도 요약 카드
-{ const _r3 = render; render = function(){ _r3(); try{ if(S && page==='home' && !(typeof isMobile==='function' && isMobile()) && !(typeof isPC==='function' && isPC()) && typeof mHomeSummary==='function') mHomeSummary(); if(document.body) applyPrefs(); }catch(e){ console.error(e); } }; }
+{ const _r3 = render; render = function(){ _r3(); try{ if(S && page==='home' && !(typeof isMobile==='function' && isMobile()) && !(typeof isPC==='function' && isPC() && typeof PC_SIDEBAR!=='undefined' && PC_SIDEBAR) && typeof mHomeSummary==='function') mHomeSummary(); if(document.body) applyPrefs(); }catch(e){ console.error(e); } }; }
 
 applyPrefs();

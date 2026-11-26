@@ -293,7 +293,7 @@ const BGM = (() => {
   const BREAKING=/커브|슬라이더|스위퍼|체인지업|포크|스플리터|너클|싱커/;
   // 투구 소리: 공이 날아가는 소리(구속·구종별) → 포수 미트 / 헛스윙 / 파울
   function pitchSnd(ev, speed){
-    if(!sfxOn || !ensureSfx() || !ev) return; const res=String(ev.res||''), v=+ev.v||140, fast=speed==='fast';
+    if(!sfxOn || !ensureSfx() || !ev) return; const res=String(ev.res||''), v=+ev.v||140, fast=speed==='fast'||speed==='xfast';
     if(res==='고의사구'){ smp('catch_s',0.35); return; }
     if(!fast) smp(BREAKING.test(ev.pt||'')?'fly_brk': v>=148?'fly_fast':['fly1','fly2'], 0.32);
     const d = fast?0:0.3;
