@@ -191,6 +191,7 @@ function liveSfx(ev){
     if(k) BGM.crowd(k, good, late);
     else if(ev.runs) BGM.crowd('run', userBat, late);
   }
+  if(ev.type==='half' && LV.uSide>=0 && userBat && Math.random()<0.5) BGM.crowd('rally');   // 우리 공격 시작: 구호 응원
   if(ev.type==='pa' && LV.uSide>=0){
     const risp = !!(ev.bases[1]||ev.bases[2]), lead = LV.uSide===1 ? ev.score[1]-ev.score[0] : ev.score[0]-ev.score[1], key = ev.inning+'-'+ev.half;
     if(risp && Math.abs(lead)<=3 && LV.cheerKey!==key){

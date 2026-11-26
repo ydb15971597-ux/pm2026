@@ -193,19 +193,31 @@ const BGM = (() => {
     f.type=type; f.frequency.value=freq; f.Q.value=q; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl,t+att); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); s.connect(f); f.connect(g); g.connect(sfxOut); s.start(t); s.stop(t+dur+0.05); return g; }
   function crash(t, lvl=0.22){ sfxNoise(t, 1.8, 'highpass', 5200, lvl, 0.5); sfxNoise(t, 0.9, 'bandpass', 3200, lvl*0.6, 0.8); }
   function snareRoll(t, dur, lvl=0.06){ for(let x=0;x<dur;x+=0.045) sfxNoise(t+x, 0.05, 'bandpass', 2200, lvl*(0.5+x/dur*0.8), 0.7); }
-  function roar(t, dur=4.2, lvl=0.32){
-    // 관중 함성: 여러 대역의 노이즈를 느린 흔들림으로 겹쳐 사람 목소리 덩어리처럼
-    [[350,0.9],[650,1],[1100,0.8],[1900,0.45],[3200,0.2]].forEach(([fq,a],i)=>{
-      const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true; s.playbackRate.value=0.8+Math.random()*0.4;
-      const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=fq; f.Q.value=0.9;
-      const g=ctx.createGain(), lfo=ctx.createOscillator(), lg=ctx.createGain(); lfo.frequency.value=2+Math.random()*3; lg.gain.value=lvl*a*0.25; lfo.connect(lg); lg.connect(g.gain);
-      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl*a,t+0.5); g.gain.setValueAtTime(lvl*a,t+dur*0.55); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-      const pn=ctx.createStereoPanner?ctx.createStereoPanner():null; s.connect(f); f.connect(g); if(pn){ pn.pan.value=(i%2?1:-1)*0.4; g.connect(pn); pn.connect(sfxOut); } else g.connect(sfxOut);
-      s.start(t); s.stop(t+dur+0.05); lfo.start(t); lfo.stop(t+dur+0.05); });
-    for(let i=0;i<14;i++){ const tt=t+0.3+Math.random()*(dur-1); sfxNoise(tt, 0.12, 'bandpass', 1200+Math.random()*1200, 0.05+Math.random()*0.05, 1.5); }   // 박수
-    for(let i=0;i<3;i++){ const tt=t+0.4+Math.random()*1.6, o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.setValueAtTime(2400+Math.random()*600,tt); o.frequency.linearRampToValueAtTime(3000+Math.random()*500,tt+0.25);   // 휘파람
-      g.gain.setValueAtTime(0.0001,tt); g.gain.linearRampToValueAtTime(0.035,tt+0.04); g.gain.exponentialRampToValueAtTime(0.0001,tt+0.4); o.connect(g); g.connect(sfxOut); o.start(tt); o.stop(tt+0.45); }
+  // ---------- 사람 목소리 합성 (관중) ----------
+  // 톱니파 성대음 → 모음 포먼트(공명) 필터 3개 → 짧은 음정 흔들림. 목소리 수십 개를 겹쳐 "와아아!"를 만든다.
+  const VOW = { a:[[800,1],[1150,0.5],[2900,0.18]], o:[[470,1],[820,0.5],[2800,0.1]], e:[[420,1],[1750,0.4],[2600,0.18]], u:[[330,1],[720,0.3],[2500,0.07]], ae:[[660,1],[1700,0.45],[2450,0.15]] };
+  let voiceBus=null;
+  function vbus(){ if(voiceBus) return voiceBus; voiceBus=ctx.createGain(); voiceBus.gain.value=1; const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3800; const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=90;
+    voiceBus.connect(hp); hp.connect(lp); lp.connect(sfxOut); return voiceBus; }
+  function voice(t, dur, f0, vow, lvl, glide=[0.92,1.2,1.0], pan=0){
+    const o=ctx.createOscillator(); o.type='sawtooth';
+    o.frequency.setValueAtTime(f0*glide[0],t); o.frequency.linearRampToValueAtTime(f0*glide[1],t+Math.min(0.25,dur*0.3)); o.frequency.linearRampToValueAtTime(f0*glide[2],t+dur);
+    const vib=ctx.createOscillator(), vg=ctx.createGain(); vib.frequency.value=4.5+Math.random()*2.5; vg.gain.value=18+Math.random()*25; vib.connect(vg); vg.connect(o.detune);
+    const g=ctx.createGain(), fem = f0>180 ? 1.16 : 1;
+    (VOW[vow]||VOW.a).forEach(([fr,a])=>{ const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=fr*fem*(0.95+Math.random()*0.1); bp.Q.value=fr/90; const ga=ctx.createGain(); ga.gain.value=a*3.2; o.connect(bp); bp.connect(ga); ga.connect(g); });
+    const att=0.04+Math.random()*0.12;
+    const e=ctx.createGain(); g.connect(e); e.gain.setValueAtTime(0.0001,t); e.gain.linearRampToValueAtTime(lvl,t+att); e.gain.setValueAtTime(lvl*0.9,t+Math.max(att,dur-0.18)); e.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.08);
+    if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; e.connect(p); p.connect(vbus()); } else e.connect(vbus());
+    o.start(t); o.stop(t+dur+0.12); vib.start(t); vib.stop(t+dur+0.12);
   }
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const vf0 = ()=> Math.random()<0.62 ? rnd(105,175) : rnd(195,300);   // 남녀 섞인 관중
+  function cheer(t, dur=2.5, lvl=0.3, n=30, vows=['a','a','ae','o'], glide){
+    const per = lvl*0.9/Math.sqrt(n);
+    for(let i=0;i<n;i++){ const st=t+rnd(0,0.22), d=dur*rnd(0.65,1); voice(st, d, vf0(), vows[i%vows.length], per*rnd(0.6,1.3), glide||[rnd(0.85,0.95), rnd(1.15,1.35), rnd(0.9,1.05)], rnd(-0.7,0.7)); }
+    sfxNoise(t, dur*0.9, 'bandpass', 1200, lvl*0.06, 0.6, 0.15);   // 숨소리 약간
+  }
+  function roar(t, dur=4.2, lvl=0.32){ cheer(t, dur, lvl, 36); claps(t+0.15, Math.round(dur*10), dur*0.8, lvl*0.28); }
   function fanfare(){
     if(!sfxOn || !ensureSfx()) return;
     if(on){ out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(vol*0.12, ctx.currentTime, 0.1); out.gain.setTargetAtTime(vol*0.5, ctx.currentTime+5.2, 0.6); }
@@ -223,36 +235,43 @@ const BGM = (() => {
     roar(fin-0.15, 4.6, 0.3);
   }
   // ---------- 중계 관중 소리 ----------
-  let bed=null;   // 경기 내내 깔리는 웅성거림
+  let bed=null;   // 경기 내내 들리는 관중 웅성거림 (짧은 말소리 조각들)
   function crowdBed(onOff){
-    if(!onOff){ if(bed){ const b=bed; bed=null; b.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); setTimeout(()=>{ try{ b.src.forEach(x=>x.stop()); }catch(e){} }, 2000); } return; }
+    if(!onOff){ if(bed){ clearInterval(bed.timer); bed=null; } return; }
     if(bed || !sfxOn || !ensureSfx()) return;
-    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,ctx.currentTime); g.gain.linearRampToValueAtTime(0.05,ctx.currentTime+1.5); g.connect(sfxOut);
-    const src=[[400,1],[800,0.8],[1500,0.4]].map(([f,a])=>{ const s_=ctx.createBufferSource(); s_.buffer=noiseBuf; s_.loop=true; s_.playbackRate.value=0.7+Math.random()*0.3;
-      const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f; bp.Q.value=0.8; const ga=ctx.createGain(); ga.gain.value=a;
-      const l=ctx.createOscillator(), lg=ctx.createGain(); l.frequency.value=0.2+Math.random()*0.3; lg.gain.value=a*0.35; l.connect(lg); lg.connect(ga.gain); l.start();
-      s_.connect(bp); bp.connect(ga); ga.connect(g); s_.start(); return s_; });
-    bed={g, src};
+    bed={lvl:0.022, until:0, timer:setInterval(()=>{ if(!ctx) return; const t=ctx.currentTime+0.05, boost=performance.now()<bed.until?2.2:1, k=Math.random()<0.5?2:1;
+      for(let i=0;i<k;i++) voice(t+rnd(0,0.12), rnd(0.12,0.35), vf0()*rnd(0.9,1.1), ['a','o','e','u','ae'][Math.floor(Math.random()*5)], bed.lvl*boost*rnd(0.5,1.2), [1, rnd(0.95,1.15), rnd(0.85,1)], rnd(-0.9,0.9)); }, 110)};
   }
-  function bedSwell(lvl, dur){ if(!bed) return; const t=ctx.currentTime; bed.g.gain.cancelScheduledValues(t); bed.g.gain.setTargetAtTime(lvl,t,0.15); bed.g.gain.setTargetAtTime(0.05,t+dur,0.8); }
-  function groan(t, lvl=0.16){ // 아쉬운 "우우~"
-    [300,520,900].forEach((f,i)=>{ const s_=ctx.createBufferSource(); s_.buffer=noiseBuf; s_.loop=true; const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=2.2;
-      bp.frequency.setValueAtTime(f*1.25,t); bp.frequency.exponentialRampToValueAtTime(f*0.8,t+1.3); const g=ctx.createGain();
-      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(lvl*(1-i*0.25),t+0.25); g.gain.exponentialRampToValueAtTime(0.0001,t+1.5);
-      s_.connect(bp); bp.connect(g); g.connect(sfxOut); s_.start(t); s_.stop(t+1.6); });
+  function bedSwell(lvl, dur){ if(bed) bed.until=performance.now()+dur*1000; }
+  function groan(t, lvl=0.16){ cheer(t, 1.5, lvl, 24, ['o','u'], [1.12, 1.0, 0.72]); }   // "오우~" 탄식
+  function claps(t, n=10, spread=0.5, lvl=0.07){ for(let i=0;i<n;i++){ const tt=t+Math.random()*spread; sfxNoise(tt, 0.035, 'bandpass', rnd(1300,2400), lvl*rnd(0.6,1.2), 1.1, 0.001); } }
+  function bigDrum(t, lvl=0.55){ // 응원단 큰북: 낮은 "둥" + 가죽 타격감
+    const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(115,t); o.frequency.exponentialRampToValueAtTime(58,t+0.12);
+    g.gain.setValueAtTime(lvl,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.45); o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t+0.5);
+    sfxNoise(t, 0.06, 'lowpass', 900, lvl*0.5, 0.7, 0.001);
   }
-  function claps(t, n=10, spread=0.5, lvl=0.07){ for(let i=0;i<n;i++) sfxNoise(t+Math.random()*spread, 0.1, 'bandpass', 1100+Math.random()*1400, lvl*(0.6+Math.random()*0.6), 1.4); }
-  function chant(t, lvl=0.1){ // 응원 박수 "짝짝 짝짝짝" ×2 + 큰북
-    const beat=0.2, pat=[0,1,3,4,5];
-    for(let r=0;r<2;r++){ const st=t+r*beat*8; pat.forEach(k=>{ claps(st+k*beat, 12, 0.03, lvl); }); [0,3].forEach(k=>timp(43, st+k*beat, 0.35)); }
+  function shout(t, vow='o', lvl=0.2, n=26, dur=0.28){ cheer(t, dur, lvl, n, [vow], [1, 1.12, 0.96]); }
+  function chant(t, lvl=0.2){ // "오! 오! 오오오!" 구호 + 큰북 + 박수
+    const b=0.24; [[0,1],[2,1],[4,0.6],[5,0.6],[6,1.2]].forEach(([k,l])=>{ shout(t+k*b, 'o', lvl*l, 24, k===6?0.45:0.22); bigDrum(t+k*b, 0.5); claps(t+k*b, 14, 0.04, 0.06); });
   }
-  function drum(t, n=4, lvl=0.35){ for(let i=0;i<n;i++) timp(38, t+i*0.42, lvl*(i%2?0.7:1)); }   // 긴장감 있는 큰북
-  function sting(t){ // 짧은 브라스 "빠바밤!"
-    [[67,0],[67,0.09],[72,0.18]].forEach(([n,d],i)=>{ brass(n, t+d, i===2?0.5:0.07, 0.07); brass(n-5, t+d, i===2?0.5:0.07, 0.045, 0.2); }); }
+  // 오리지널 응원가: 트럼펫 + 관중 떼창(모음 "오/아") + 큰북, 4마디
+  const SONG=[[67,1],[67,1],[69,1],[71,1],[74,2],[71,1],[69,1],[67,1],[71,1],[74,1],[76,1],[74,3]];
+  function cheerSong(t, lvl=0.22){
+    const q=0.25; let x=0;
+    SONG.forEach(([n,len],i)=>{ const st=t+x*q, d=len*q*0.92;
+      brass(n, st, d, 0.06, -0.2);
+      const vows=i%2?['a']:['o']; const per=lvl/Math.sqrt(18);
+      for(let v=0;v<18;v++){ const f=hz(n-(v%3===0?12:24))*rnd(0.985,1.015); voice(st+rnd(0,0.04), d, f, vows[0], per*rnd(0.7,1.2), [0.97,1.0,1.0], rnd(-0.7,0.7)); }
+      x+=len; });
+    for(let k=0;k<x;k++){ bigDrum(t+k*q, k%2?0.38:0.55); if(k%2) claps(t+k*q, 12, 0.03, 0.055); }
+    return x*q;
+  }
+  function drum(t, n=4, lvl=0.35){ for(let i=0;i<n;i++) bigDrum(t+i*0.5, lvl*(i%2?0.7:1)); }   // 위기: 무거운 큰북
+  function sting(t){ [[67,0],[67,0.09],[72,0.18]].forEach(([n,d],i)=>{ brass(n, t+d, i===2?0.5:0.07, 0.07); brass(n-5, t+d, i===2?0.5:0.07, 0.045, 0.2); }); }
   let lastCrowd=0;
   function liveCrowd(kind, good=true, power=1){
     if(!sfxOn || !ensureSfx()) return; const t=ctx.currentTime+0.02, now=performance.now();
-    if(now-lastCrowd<250 && kind!=='hr' && kind!=='win') return; lastCrowd=now;
+    if(now-lastCrowd<250 && !['hr','win','song'].includes(kind)) return; lastCrowd=now;
     const L=power*(good?1:0.55);
     switch(kind){
       case 'hit':  if(good){ roar(t,1.6,0.16*L); claps(t+0.2,10,0.8); } else groan(t,0.1); break;
@@ -262,9 +281,11 @@ const BGM = (() => {
       case 'k':    if(good){ roar(t,1.2,0.13*L); claps(t,8,0.5); } else groan(t,0.08); break;
       case 'dp':   if(good){ roar(t,1.8,0.18*L); claps(t,12,0.8); } else groan(t,0.14); break;
       case 'sb':   if(good){ roar(t,1.2,0.12*L); } else groan(t,0.09); break;
-      case 'chance': chant(t,0.085); bedSwell(0.1,3.5); break;
+      case 'chance': if(Math.random()<0.55) cheerSong(t,0.24); else chant(t,0.22); bedSwell(0.1,3.5); break;
+      case 'rally': chant(t,0.2); break;
+      case 'song': cheerSong(t,0.24); break;
       case 'crisis': drum(t,4,0.3); bedSwell(0.08,2.5); break;
-      case 'win':  roar(t,5.5,0.36); claps(t+0.2,40,4,0.09); sting(t+0.2); crash(t+0.2,0.2); break;
+      case 'win':  roar(t,5.5,0.38); sting(t+0.2); crash(t+0.2,0.2); setTimeout(()=>{ if(sfxOn&&ctx) cheerSong(ctx.currentTime+0.05,0.2); }, 2200); break;
       case 'lose': groan(t,0.12); break;
     }
   }
