@@ -688,12 +688,19 @@ body.noanim *{animation:none!important;transition:none!important}
 .pdet .go{width:100%;min-height:54px;border-radius:16px;font-size:17px;font-weight:800;background:var(--c);color:#fff;margin-top:8px}
 .pdet input{width:100%;min-height:46px}
 @media (max-width:760px){
-  .pick{padding:calc(env(safe-area-inset-top) + 14px) 16px 230px}
+  .pick{padding:calc(env(safe-area-inset-top) + 12px) 14px 250px}
   .pick h2{font-size:24px}
   .pick-top .mute{display:none}
   .pick-grid{display:block}
-  .pick-list{grid-template-columns:1fr;gap:8px}
-  .pk{min-height:64px;padding:12px 14px}
+  .pick-list{grid-template-columns:1fr 1fr;gap:8px}
+  .pk{min-height:58px;padding:9px 10px;gap:8px;border-radius:16px}
+  .pk svg{width:34px;height:34px;flex:none}
+  .pk b{font-size:14px;line-height:1.25;word-break:keep-all}
+  .pk .s{display:none}
+  .pk .rk{font-size:11px}.pk .rk b{font-size:13px}.pk .rk br{display:none}
+  .pick-top button{min-height:36px;padding:6px 12px;font-size:13px}
+  .pick-top .mute{display:none}
+  .pick .foot{font-size:11px}
   .pdet{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:40;border-radius:26px 26px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(0,0,0,.5);max-height:62vh;overflow:auto}
   .pdet .st,.pdet .kv{display:none}
   .pdet.more .st,.pdet.more .kv{display:grid}.pdet.more .st{display:block}
@@ -701,6 +708,14 @@ body.noanim *{animation:none!important;transition:none!important}
   .planrow{grid-template-columns:1fr}.plh{padding-top:0}
   .planc{min-width:0;max-width:none;flex:1 1 44%}
   .pregame,.settings{gap:12px}
+  .pgtabs{display:flex;gap:6px;background:var(--panel);border-radius:16px;padding:5px;position:sticky;top:calc(env(safe-area-inset-top) + 64px);z-index:5}
+  .pgtabs button{flex:1;min-height:40px!important;border-radius:12px!important;font-size:14px!important;padding:6px 4px!important;background:none!important;color:var(--mute)}
+  .pgtabs button.on{background:#fff!important;color:#111;font-weight:700}
+  .pregame.mob .pghead{padding:14px!important}.pregame.mob .pghead svg{width:40px;height:40px}
+  .pregame.mob .planc span{display:none}
+  .pregame.mob .planc{flex:1 1 30%;padding:10px!important;min-height:52px!important}
+  .pregame.mob .pgfoot{display:none}
+  .pgnext{width:100%;min-height:50px!important;background:var(--panel2)!important;font-weight:700}
 }
 /* =====================================================================
    PC (1101px 이상) — 토스의 깔끔함 + FM의 정보 구조. body.pc 는 desktop.js 가 붙인다
@@ -825,6 +840,54 @@ body.pc .pregame>.pghead,body.pc .pregame>.pgfoot{grid-column:1/-1}
 body.pc .pregame>.planpanel{grid-column:1;grid-row:2/span 3}
 body.pc .pregame>.panel:not(.pghead):not(.planpanel):not(.pgfoot){grid-column:2}
 body.pc .settings{max-width:1100px}
+/* =====================================================================
+   타이틀 화면 (토스 스타일) — title.js
+   ===================================================================== */
+body.ttl{background:#0f0f12}
+body.ttl #bgm{display:none!important}
+.tt{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:radial-gradient(700px 420px at 50% -80px,rgba(240,68,82,.16),transparent 70%),#0f0f12;color:#f2f3f5}
+.tt-nav{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 18px) 28px 0;max-width:1120px;width:100%;margin:0 auto}
+.tt-brand{display:flex;align-items:center;gap:10px}.tt-brand b{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.tt-bgm{display:flex!important;align-items:center;gap:8px;background:#1d1d22!important;border:0!important;border-radius:999px!important;padding:6px 6px 6px 14px!important;color:#b0b1b8;font-size:13.5px;font-weight:600;min-height:40px}
+.tt-bgm .m-sw{width:44px;height:26px;border-radius:13px;background:#3a3a44;position:relative;transition:background .2s;display:inline-block}
+.tt-bgm .m-sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s}
+.tt-bgm .m-sw.on{background:#f04452}.tt-bgm .m-sw.on i{left:21px}
+.tt-main{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 24px 40px;max-width:640px;width:100%;margin:0 auto}
+.tt-icon{animation:ttUp .5s ease-out both}
+.tt-icon svg{filter:drop-shadow(0 14px 32px rgba(240,68,82,.28))}
+.tt-eyebrow{margin:26px 0 0;font-size:15px;font-weight:700;color:#f04452;letter-spacing:-.2px;animation:ttUp .5s .05s ease-out both}
+.tt-h{margin:10px 0 0;font-size:clamp(36px,6vw,58px);line-height:1.2;font-weight:800;letter-spacing:-.045em;color:#fff;animation:ttUp .5s .1s ease-out both}
+.tt-p{margin:18px 0 0;font-size:clamp(16px,2vw,19px);line-height:1.6;color:#9a9ba3;font-weight:500;letter-spacing:-.2px;animation:ttUp .5s .15s ease-out both}
+.tt-save{display:flex!important;align-items:center;gap:14px;width:100%;margin-top:36px;padding:16px 18px!important;background:#1d1d22!important;border:0!important;border-radius:22px!important;text-align:left;color:#f2f3f5;min-height:0;animation:ttUp .5s .2s ease-out both;transition:background .15s,transform .1s}
+.tt-save:hover{background:#25252c!important}.tt-save:active{transform:scale(.98)}
+.tt-save>svg:last-child{color:#5d5e66;margin-left:auto;flex:none}
+.tt-sv{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tt-sv small{font-size:13px;color:#f04452;font-weight:700}
+.tt-sv b{font-size:18px;font-weight:700;letter-spacing:-.4px}
+.tt-sv span{font-size:13.5px;color:#8b8c94;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-cta{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;margin-top:14px;animation:ttUp .5s .25s ease-out both}
+.tt-go{width:100%;min-height:60px!important;border:0!important;border-radius:18px!important;background:#f04452!important;color:#fff!important;font-size:18px!important;font-weight:700!important;letter-spacing:-.3px;box-shadow:none!important;transition:background .15s,transform .1s}
+.tt-go:hover{background:#f25e6a!important}
+.tt-go.alt{background:#2a2a31!important;color:#e9e9ee!important}.tt-go.alt:hover{background:#34343c!important}.tt-go:active{transform:scale(.98)}
+.tt-sub{display:inline-flex;align-items:center;gap:7px;padding:12px 16px;border-radius:14px;color:#9a9ba3;font-size:15px;font-weight:600;cursor:pointer}
+.tt-sub:hover{background:#1d1d22;color:#fff}
+.tt-sub input{display:none}
+.tt-feats{list-style:none;padding:0;margin:44px 0 0;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;text-align:left;animation:ttUp .5s .3s ease-out both}
+.tt-feats li{display:flex;gap:12px;align-items:center;background:#17171c;border-radius:20px;padding:16px}
+.tt-fi{width:42px;height:42px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(240,68,82,.13);color:#ff6b77}
+.tt-feats b{display:block;font-size:15px;font-weight:700;letter-spacing:-.3px}
+.tt-feats div span{display:block;font-size:13px;color:#8b8c94;margin-top:1px}
+.tt-foot{text-align:center;font-size:12.5px;color:#5f6068;padding:0 20px calc(22px + env(safe-area-inset-bottom))}
+@keyframes ttUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (max-width:560px){
+  .tt-nav{padding:calc(env(safe-area-inset-top) + 12px) 18px 0}
+  .tt-brand b{font-size:15px}
+  .tt-bgm span:not(.m-sw){display:none}
+  .tt-main{padding:6vh 20px 24px}
+  .tt-icon svg{width:80px;height:80px}
+  .tt-feats{grid-template-columns:1fr;margin-top:32px}
+}
+@media (prefers-reduced-motion:reduce){ .tt *{animation:none!important} }
 </style>
 </head>
 <body>
@@ -842,5 +905,6 @@ body.pc .settings{max-width:1100px}
 <script src="audio.js"></script>
 <script src="mobile.js"></script>
 <script src="desktop.js"></script>
+<script src="title.js"></script>
 </body>
 </html>
