@@ -835,7 +835,7 @@ function caArrow(p){ const d=caDelta(p); if(Math.abs(d)<1) return ''; return `<s
 const _playerBase6 = PAGES.player;
 PAGES.player = ()=>{ const p=P(curPlayer); let h=_playerBase6(); if(!p||plTab!=='ov') return h; if(!p.aS) snapAttrs(p);
   const d=caDelta(p), gw=growthWord(p);
-  const note = `<div class="cl-note" style="margin:0 0 8px">${d?`시즌 개막 대비 현재 능력 ${caArrow(p)} (200점 기준)`:'시즌 개막 이후 능력 변화 없음'}${gw?` · 성장 환경: <b>${gw}</b>${p.age<=25?' — 어릴수록 꾸준히 뛰면 더 빨리 자라요':''}`:''}</div>`;
+  const note = `<div class="cl-note" style="margin:0 0 8px">${d?`시즌 개막 대비 현재 능력 ${caArrow(p)} (200점 기준)`:(S.phase==='off'?'다음 시즌 개막 후부터 능력 변화가 표시돼요':'시즌 개막 이후 능력 변화 없음')}${gw?` · 성장 환경: <b>${gw}</b>${p.age<=25?' — 어릴수록 꾸준히 뛰면 더 빨리 자라요':''}`:''}</div>`;
   const i=h.indexOf('<div class="panel pbody"'); return i>=0 ? h.slice(0,i)+note+h.slice(i) : note+h; };
 (function(){ const st=document.createElement('style'); st.textContent=`.dl{font-size:11px;font-weight:800;padding:0 5px;border-radius:6px;white-space:nowrap}.dl.up{color:#3fb950;background:rgba(63,185,80,.12)}.dl.dn{color:#f0605a;background:rgba(240,96,90,.12)}`; document.head.appendChild(st); })();
 

@@ -1327,6 +1327,88 @@ const NAME_MAP_H = {"1513459581": "치리나스", "930030409": "톨하스트", "
 // ---------- 새 게임: 2025 시즌 종료 후 스토브리그에서 시작 ----------
 const _newGame3 = newGame;
 newGame = function(userId, mgrName){ _newGame3(userId, mgrName); startFromStove(); };
+
+// ---------- 가상 2025 시즌 기록 (스토브리그 시작용) ----------
+// 실제 기록이 아니라 각 선수의 능력치·역할로 만든 가상의 성적. 리그 평균(타율 .265 안팎)에 맞춰 보정한다.
+function gen2025(){
+  const nz = k => (R()+R()+R()-1.5)*k;
+  const order = TEAM_DATA.slice().sort((a,b)=>a.prevRank-b.prevRank).map(t=>t.id);
+  const PCT = [.598,.574,.545,.522,.507,.489,.468,.449,.427,.401];
+  const pct = {};
+  order.forEach((id,i)=>{ const t=S.teams[id], ti=Math.floor(R()*3), w=Math.round((144-ti)*(PCT[i]+nz(0.006))); t.w=w; t.t=ti; t.l=144-w-ti; pct[id]=w/(w+t.l);
+    t.rs=Math.round(144*(4.6+(PCT[i]-.5)*3.2+nz(.15))); t.ra=Math.round(144*(4.6-(PCT[i]-.5)*3.2+nz(.15))); t.streak=0; });
+  // 순위가 뒤집히지 않게 승수 정렬
+  for(let i=1;i<order.length;i++){ const a=S.teams[order[i-1]], b=S.teams[order[i]]; if(b.w/(b.w+b.l) >= a.w/(a.w+a.l)){ b.w=Math.min(b.w, a.w-1); b.l=144-b.w-b.t; } }
+  const bats=[], pits=[];
+  const roleOf = (p, t)=>{
+    if(!t) return p.isP ? (p.pos==='SP'?(ovrOf(p)>=13?'sp':'spB'):'rp') : (ovrOf(p)>=13?'reg':'bench');
+    if(p.farm) return 'farm';
+    if(p.isP){ if(t.rotation.includes(p.id)) return 'sp'; if(t.closer===p.id) return 'cl'; if(t.setup.includes(p.id)) return 'su'; return 'rp'; }
+    return t.lineup.some(x=>x.pid===p.id) ? 'reg' : 'bench'; };
+  for(const p of Object.values(S.players)){
+    if(p.am || p.prospect || p.rookie || p.lg || p.abroad || p.car?.some(c=>c.y===2025)) continue;
+    const tid = p.team || p.faFrom; if(!tid || !S.teams[tid]) continue;
+    const role = roleOf(p, p.team ? S.teams[tid] : null);
+    resetStats(p); const st=p.st, a=p.a, inj = R()<0.12 ? 0.45+R()*0.4 : 1;
+    if(role==='farm') continue;   // 퓨처스 선수는 1군 기록 없음
+    if(!p.isP){
+      { const g = role==='reg' ? Math.round((122+R()*22)*inj) : Math.round((40+R()*55)*inj); st.g=g; st.pa=Math.round(g*(role==='reg'?3.9+R()*0.5:1.7+R()*0.9)); }
+      const c=a.con, ak=a.avk, e=a.eye, po=a.pow, sp=a.spd;
+      const avg = clamp(.265+(c-12)*0.011+(ak-12)*0.003+(sp-12)*0.002+nz(0.03), .17, .37);
+      const bb = clamp(.088+(e-12)*0.008+nz(.012), .03, .18), k = clamp(.205-(c-12)*0.008-(ak-12)*0.008+(po-12)*0.004+nz(.02), .07, .34);
+      const hr = clamp(.022*Math.exp(0.17*(po-12))*(1+nz(.25)), .001, .08);
+      st.bb=Math.round(st.pa*bb); const hbp=Math.round(st.pa*0.012), sf=Math.round(st.pa*0.008);
+      st.ab=Math.max(0, st.pa-st.bb-hbp-sf); st.k=Math.min(st.ab, Math.round(st.pa*k));
+      bats.push({p, avg, hr});
+    } else {
+      {
+        const q=(a.stf*0.5+a.vel*0.3+a.brk*0.3+a.ctl*0.3)/1.4;
+        const era = clamp(4.35-(q-12)*0.42+nz(0.9)*(role==='sp'?0.7:1.2), 1.4, 9.5);
+        if(role==='sp'||role==='spB'){ const idx=Math.max(0,S.teams[tid].rotation.indexOf(p.id)); st.gs = Math.round((role==='spB'?8+R()*12:(29-idx*1.4-R()*3))*inj); st.pg=st.gs+(R()<0.3?Math.floor(R()*4):0);
+          st.outs=Math.round(st.gs*3*clamp(5.0+(a.sta-12)*0.16+(q-12)*0.12+nz(.4),3.6,7.2)) + (st.pg-st.gs)*3; }
+        else { st.pg=Math.round((role==='cl'?56+R()*10:role==='su'?55+R()*16:18+R()*36)*inj); st.outs=Math.round(st.pg*3*(role==='rp'&&a.sta>=12?1.35:1.0)*(0.92+R()*0.16)); }
+        const ip=st.outs/3;
+        st.er=Math.round(era*ip/9); st.pk=Math.round(ip*clamp(7.2+(a.stf+a.brk-24)*0.28+nz(.8),4,13)/9);
+        st.pbb=Math.round(ip*clamp(3.5-(a.ctl-12)*0.26+nz(.5),1.1,6.8)/9); st.phr=Math.round(ip*clamp(0.85-(a.gb-10)*0.04-(a.stf-12)*0.03+nz(.15),.25,1.8)/9);
+        st.ph=Math.round(ip*clamp(8.7+(era-4.35)*0.95+nz(.5),5.5,13.5)/9);
+        const tp=pct[tid]??0.5;
+        if(st.gs){ st.w=Math.max(0,Math.round(st.gs*(0.40+(tp-.5)*0.6+(4.35-era)*0.035)+nz(1.5))); st.l=Math.max(0,Math.round(st.gs*(0.31-(tp-.5)*0.5-(4.35-era)*0.03)+nz(1.5))); }
+        else { st.w=Math.max(0,Math.round(st.pg*0.06+nz(1.2))); st.l=Math.max(0,Math.round(st.pg*0.05+nz(1.2))); }
+        if(role==='cl') st.sv=Math.max(5,Math.round(st.pg*(0.38+(tp-.5)*0.8)*(era<3.5?1.1:0.85)));
+        if(role==='su') st.hld=Math.max(3,Math.round(st.pg*(0.26+(tp-.5)*0.5)));
+        if(role==='rp' && R()<0.4) st.hld=Math.round(st.pg*0.12*R());
+        pits.push(p);
+      }
+    }
+  }
+  // 타자: 리그 타율 .265 · 타석당 홈런 2.2%에 맞춰 보정한 뒤 나머지 기록을 채움
+  const tAB=bats.reduce((s,x)=>s+x.p.st.ab,0), rawH=bats.reduce((s,x)=>s+x.avg*x.p.st.ab,0), rawHR=bats.reduce((s,x)=>s+x.hr*x.p.st.pa,0), tPA=bats.reduce((s,x)=>s+x.p.st.pa,0);
+  const fH = tAB? .265*tAB/rawH : 1, fHR = rawHR? .022*tPA/rawHR : 1;
+  for(const {p,avg,hr} of bats){ const st=p.st, a=p.a;
+    st.h=Math.min(st.ab, Math.round(st.ab*avg*fH)); st.hr=Math.min(Math.round(st.h*0.45), Math.round(st.pa*hr*fHR));
+    st.d=Math.min(st.h-st.hr, Math.round((st.h-st.hr)*clamp(.2+(a.gap-12)*0.012,.08,.32))); st.t=Math.min(st.h-st.hr-st.d, Math.round(st.h*clamp(.012+(a.spd-12)*0.004,0,.05)));
+    const att=Math.max(0, Math.round(st.g*Math.max(0,a.stl-9.5)*0.03*(1+nz(.3)))); st.sb=Math.round(att*clamp(.62+(a.stl-12)*0.03,.4,.9)); st.cs=att-st.sb;
+    st.r=Math.round((st.h+st.bb)*0.34+st.hr*0.62+st.sb*0.15); st.rbi=Math.round((st.h-st.hr)*0.3+st.hr*1.55+st.pa*0.01); }
+  // 투수: 팀별 이닝 합계를 144경기 분량에 맞추고, 리그 평균자책점 4.30에 맞춤
+  const byT={}; for(const p of pits){ (byT[p.team||p.faFrom] ||= []).push(p); }
+  const SC=['outs','er','pk','pbb','phr','ph'];
+  for(const [tid,list] of Object.entries(byT)){ if(!S.teams[tid] || !list.some(p=>p.team)) continue; const tot=list.filter(p=>p.team).reduce((s,p)=>s+p.st.outs,0); const f=tot? 3870/tot : 1;
+    for(const p of list.filter(p=>p.team)) for(const k of SC) p.st[k]=Math.round(p.st[k]*f); }
+  const lo=pits.reduce((s,p)=>s+p.st.outs,0), le=pits.reduce((s,p)=>s+p.st.er,0), fe = le? 4.3/(le*27/lo) : 1;
+  for(const p of pits){ p.st.er=Math.round(p.st.er*fe); p.st.ph=Math.round(p.st.ph*Math.sqrt(fe)); }
+  // 시즌 기록 보관 (선수 화면 2025 줄·기록 탭)
+  for(const p of [...bats.map(x=>x.p), ...pits]){
+    const tid=p.team||p.faFrom;
+    const st = Object.fromEntries(ST_KEYS(p).map(k=>[k,p.st[k]||0]));
+    if(false){ (p.car ||= []).push({y:2025, t:tid, st:Object.fromEntries(ST_KEYS(p).map(k=>[k,0])), fst:p.isP?{g:p.st.pg,outs:p.st.outs,er:Math.round(p.st.outs/27*4.8),k:Math.round(p.st.outs/3*0.8),ab:0,h:0,hr:0}:{g:p.st.g,ab:Math.round(p.st.pa*0.88),h:Math.round(p.st.pa*0.88*0.27),hr:Math.round(p.st.pa*0.02),outs:0,er:0,k:0}, pst:null, age:p.age, v:1}); resetStats(p); continue; }
+    (p.car ||= []).push({y:2025, t:tid, st, fst:null, pst:null, age:p.age, v:1});
+  }
+  // 구단 역사: 2025 시즌 결과
+  const u=S.teams[S.user], r=order.indexOf(S.user)+1, champ=order[0];
+  S.history = (S.history||[]).filter(h=>h.year!==2025);
+  S.history.push({year:2025, champ, rank:r, w:u.w, l:u.l, t:u.t, post: champ===S.user?'우승':r<=5?'포스트시즌 진출':'탈락', virt:true});
+}
+
 function startFromStove(){
   const order=TEAM_DATA.slice().sort((a,b)=>a.prevRank-b.prevRank).map(t=>t.id);
   S.year=2025; S.phase='off'; S.date='2025-11-03'; S.dayIdx=0; S.results=[]; S.finalRank=order.slice(); S.prevFinal=order.slice();
@@ -1340,6 +1422,7 @@ function startFromStove(){
   for(let i=0;i<14;i++){ const p=genOverseas(pick(lgs),10); p.sk=50; p.ovPool=true; pool.push(p.id); }
   S.off={stage:'stove', pool, offers:{}, log:[], week:0, retired:[], exhib:null, fcampDone:0};
   S.inbox=S.inbox.filter(m=>!/신인 드래프트 준비/.test(m.title));
+  gen2025();
   mail('이사회','2025 시즌 종료 · 스토브리그 개막',`${S.mgrName} 감독님, ${TD(S.user).name}에 오신 것을 환영합니다. 2025 시즌이 끝나고 스토브리그가 시작됐습니다.\n\n<b>개막(2026년 3월 28일)까지 할 일</b>\n· FA 시장에서 전력 보강 (영입 → FA · 스토브리그)\n· 트레이드 · 해외 스카우트로 외국인 선수 점검\n· 11월 마무리캠프 · 2월 스프링캠프 계획 (훈련 → 캠프)\n· 고교·대학 유망주 관찰 시작 (영입 → 고교 · 대학 야구)\n· 3월 시범경기에서 개막 엔트리 결정\n\n상단의 <b>계속</b>을 누르면 1주씩 진행됩니다.`,'board');
   save();
 }
