@@ -1,0 +1,9 @@
+# 공개 저장소에 올리지 않는 파일 (실명·상표가 들어 있는 작업 자료)
+design/
+tools/name_map.json
+tools/fictionalize_names.py
+tools/apply_fictional.py
+Claude outputs/
+CLAUDE.md
+artifact.html
+.DS_Store
